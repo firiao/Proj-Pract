@@ -1,0 +1,1602 @@
+[
+  {
+    "id": "func_001",
+    "language": "python",
+    "function_name": "verify_jwt_token",
+    "category": "auth",
+    "description": "Проверяет JWT-токен и возвращает payload или причину невалидности.",
+    "code": "def verify_jwt_token(token: str, secret: str) -> dict:\n    \"\"\"Проверяет JWT-токен и возвращает payload или причину невалидности.\"\"\"\n    try:\n        payload = jwt.decode(token, secret, algorithms=[\"HS256\"])\n        return {\"valid\": True, \"data\": payload}\n    except jwt.ExpiredSignatureError:\n        return {\"valid\": False, \"error\": \"expired\"}\n    except jwt.InvalidTokenError:\n        return {\"valid\": False, \"error\": \"invalid\"}"
+  },
+  {
+    "id": "func_002",
+    "language": "python",
+    "function_name": "hash_password",
+    "category": "auth",
+    "description": "Хэширует пароль с помощью bcrypt с cost-фактором 12.",
+    "code": "def hash_password(password: str) -> str:\n    \"\"\"Хэширует пароль с помощью bcrypt с cost-фактором 12.\"\"\"\n    salt = bcrypt.gensalt(rounds=12)\n    return bcrypt.hashpw(password.encode(\"utf-8\"), salt).decode(\"utf-8\")"
+  },
+  {
+    "id": "func_003",
+    "language": "python",
+    "function_name": "check_password",
+    "category": "auth",
+    "description": "Сравнивает открытый пароль с bcrypt-хэшем и возвращает результат проверки.",
+    "code": "def check_password(plain: str, hashed: str) -> bool:\n    \"\"\"Сравнивает открытый пароль с bcrypt-хэшем и возвращает результат проверки.\"\"\"\n    return bcrypt.checkpw(plain.encode(\"utf-8\"), hashed.encode(\"utf-8\"))"
+  },
+  {
+    "id": "func_004",
+    "language": "python",
+    "function_name": "generate_session_id",
+    "category": "auth",
+    "description": "Генерирует уникальный идентификатор сессии на основе UUID4.",
+    "code": "def generate_session_id() -> str:\n    \"\"\"Генерирует уникальный идентификатор сессии на основе UUID4.\"\"\"\n    return uuid.uuid4().hex"
+  },
+  {
+    "id": "func_005",
+    "language": "python",
+    "function_name": "validate_credentials",
+    "category": "auth",
+    "description": "Проверяет, что логин и пароль непустые и соответствуют минимальным требованиям.",
+    "code": "def validate_credentials(username: str, password: str) -> tuple[bool, str]:\n    \"\"\"Проверяет, что логин и пароль непустые и соответствуют минимальным требованиям.\"\"\"\n    if not username or len(username) < 3:\n        return False, \"username too short\"\n    if not password or len(password) < 8:\n        return False, \"password too short\"\n    return True, \"\""
+  },
+  {
+    "id": "func_006",
+    "language": "python",
+    "function_name": "issue_jwt_token",
+    "category": "auth",
+    "description": "Создаёт подписанный JWT-токен с указанным payload и временем жизни.",
+    "code": "def issue_jwt_token(payload: dict, secret: str, ttl_seconds: int = 3600) -> str:\n    \"\"\"Создаёт подписанный JWT-токен с указанным payload и временем жизни.\"\"\"\n    data = payload.copy()\n    data[\"exp\"] = datetime.datetime.utcnow() + datetime.timedelta(seconds=ttl_seconds)\n    data[\"iat\"] = datetime.datetime.utcnow()\n    return jwt.encode(data, secret, algorithm=\"HS256\")"
+  },
+  {
+    "id": "func_007",
+    "language": "python",
+    "function_name": "refresh_jwt_token",
+    "category": "auth",
+    "description": "Обновляет JWT-токен, выдавая новый с обновлённым временем истечения.",
+    "code": "def refresh_jwt_token(token: str, secret: str, ttl_seconds: int = 3600) -> str:\n    \"\"\"Обновляет JWT-токен, выдавая новый с обновлённым временем истечения.\"\"\"\n    payload = jwt.decode(token, secret, algorithms=[\"HS256\"])\n    payload.pop(\"exp\", None)\n    payload.pop(\"iat\", None)\n    return issue_jwt_token(payload, secret, ttl_seconds)"
+  },
+  {
+    "id": "func_008",
+    "language": "python",
+    "function_name": "has_permission",
+    "category": "auth",
+    "description": "Проверяет наличие указанного права у пользователя по его ролям.",
+    "code": "def has_permission(user: dict, permission: str) -> bool:\n    \"\"\"Проверяет наличие указанного права у пользователя по его ролям.\"\"\"\n    role_permissions: dict[str, list[str]] = {\n        \"admin\": [\"read\", \"write\", \"delete\", \"manage\"],\n        \"editor\": [\"read\", \"write\"],\n        \"viewer\": [\"read\"],\n    }\n    role = user.get(\"role\", \"viewer\")\n    return permission in role_permissions.get(role, [])"
+  },
+  {
+    "id": "func_009",
+    "language": "python",
+    "function_name": "require_admin",
+    "category": "auth",
+    "description": "Декоратор, выбрасывающий PermissionError если пользователь не является администратором.",
+    "code": "def require_admin(func):\n    \"\"\"Декоратор, выбрасывающий PermissionError если пользователь не является администратором.\"\"\"\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        user = kwargs.get(\"user\") or (args[0] if args else None)\n        if not user or user.get(\"role\") != \"admin\":\n            raise PermissionError(\"Admin role required\")\n        return func(*args, **kwargs)\n    return wrapper"
+  },
+  {
+    "id": "func_010",
+    "language": "python",
+    "function_name": "logout_user",
+    "category": "auth",
+    "description": "Завершает сессию пользователя, удаляя её из хранилища активных сессий.",
+    "code": "def logout_user(session_id: str, session_store: dict) -> bool:\n    \"\"\"Завершает сессию пользователя, удаляя её из хранилища активных сессий.\"\"\"\n    if session_id in session_store:\n        del session_store[session_id]\n        return True\n    return False"
+  },
+  {
+    "id": "func_011",
+    "language": "python",
+    "function_name": "login_with_oauth",
+    "category": "auth",
+    "description": "Обменивает OAuth-код авторизации на токен доступа через провайдера.",
+    "code": "def login_with_oauth(code: str, client_id: str, client_secret: str, token_url: str) -> dict:\n    \"\"\"Обменивает OAuth-код авторизации на токен доступа через провайдера.\"\"\"\n    response = requests.post(token_url, data={\n        \"grant_type\": \"authorization_code\",\n        \"code\": code,\n        \"client_id\": client_id,\n        \"client_secret\": client_secret,\n    }, timeout=10)\n    response.raise_for_status()\n    return response.json()"
+  },
+  {
+    "id": "func_012",
+    "language": "python",
+    "function_name": "revoke_token",
+    "category": "auth",
+    "description": "Добавляет токен в чёрный список, делая его недействительным до истечения срока.",
+    "code": "def revoke_token(token: str, blacklist: set, secret: str) -> None:\n    \"\"\"Добавляет токен в чёрный список, делая его недействительным до истечения срока.\"\"\"\n    try:\n        payload = jwt.decode(token, secret, algorithms=[\"HS256\"])\n        jti = payload.get(\"jti\", hashlib.sha256(token.encode()).hexdigest())\n        blacklist.add(jti)\n    except jwt.InvalidTokenError:\n        blacklist.add(hashlib.sha256(token.encode()).hexdigest())"
+  },
+  {
+    "id": "func_013",
+    "language": "python",
+    "function_name": "parse_auth_header",
+    "category": "auth",
+    "description": "Извлекает Bearer-токен из заголовка Authorization HTTP-запроса.",
+    "code": "def parse_auth_header(header: str) -> str | None:\n    \"\"\"Извлекает Bearer-токен из заголовка Authorization HTTP-запроса.\"\"\"\n    if not header:\n        return None\n    parts = header.strip().split()\n    if len(parts) == 2 and parts[0].lower() == \"bearer\":\n        return parts[1]\n    return None"
+  },
+  {
+    "id": "func_014",
+    "language": "python",
+    "function_name": "validate_2fa_code",
+    "category": "auth",
+    "description": "Проверяет одноразовый TOTP-код двухфакторной аутентификации по секрету.",
+    "code": "def validate_2fa_code(secret: str, code: str) -> bool:\n    \"\"\"Проверяет одноразовый TOTP-код двухфакторной аутентификации по секрету.\"\"\"\n    totp = pyotp.TOTP(secret)\n    return totp.verify(code, valid_window=1)"
+  },
+  {
+    "id": "func_015",
+    "language": "python",
+    "function_name": "generate_2fa_secret",
+    "category": "auth",
+    "description": "Генерирует случайный base32-секрет для настройки двухфакторной аутентификации.",
+    "code": "def generate_2fa_secret() -> str:\n    \"\"\"Генерирует случайный base32-секрет для настройки двухфакторной аутентификации.\"\"\"\n    return pyotp.random_base32()"
+  },
+  {
+    "id": "func_016",
+    "language": "python",
+    "function_name": "send_password_reset_email",
+    "category": "auth",
+    "description": "Отправляет письмо со ссылкой для сброса пароля на указанный адрес.",
+    "code": "def send_password_reset_email(email: str, reset_token: str, base_url: str) -> None:\n    \"\"\"Отправляет письмо со ссылкой для сброса пароля на указанный адрес.\"\"\"\n    link = f\"{base_url}/reset-password?token={reset_token}\"\n    msg = email_module.MIMEText(f\"Для сброса пароля перейдите по ссылке: {link}\", \"plain\", \"utf-8\")\n    msg[\"Subject\"] = \"Сброс пароля\"\n    msg[\"From\"] = \"noreply@example.com\"\n    msg[\"To\"] = email\n    with smtplib.SMTP(\"smtp.example.com\", 587) as server:\n        server.starttls()\n        server.sendmail(\"noreply@example.com\", [email], msg.as_string())"
+  },
+  {
+    "id": "func_017",
+    "language": "python",
+    "function_name": "reset_password",
+    "category": "auth",
+    "description": "Применяет новый пароль после проверки токена сброса из хранилища.",
+    "code": "def reset_password(token: str, new_password: str, token_store: dict) -> bool:\n    \"\"\"Применяет новый пароль после проверки токена сброса из хранилища.\"\"\"\n    entry = token_store.get(token)\n    if not entry:\n        return False\n    if datetime.datetime.utcnow() > entry[\"expires_at\"]:\n        del token_store[token]\n        return False\n    entry[\"user\"][\"password_hash\"] = hash_password(new_password)\n    del token_store[token]\n    return True"
+  },
+  {
+    "id": "func_018",
+    "language": "python",
+    "function_name": "block_user",
+    "category": "auth",
+    "description": "Блокирует учётную запись пользователя, устанавливая флаг is_active в False.",
+    "code": "def block_user(user_id: int, conn: object) -> bool:\n    \"\"\"Блокирует учётную запись пользователя, устанавливая флаг is_active в False.\"\"\"\n    cursor = conn.cursor()\n    cursor.execute(\"UPDATE users SET is_active = 0, blocked_at = ? WHERE id = ?\",\n                   (datetime.datetime.utcnow().isoformat(), user_id))\n    conn.commit()\n    return cursor.rowcount > 0"
+  },
+  {
+    "id": "func_019",
+    "language": "python",
+    "function_name": "unlock_user",
+    "category": "auth",
+    "description": "Разблокирует учётную запись пользователя, сбрасывая флаг блокировки.",
+    "code": "def unlock_user(user_id: int, conn: object) -> bool:\n    \"\"\"Разблокирует учётную запись пользователя, сбрасывая флаг блокировки.\"\"\"\n    cursor = conn.cursor()\n    cursor.execute(\"UPDATE users SET is_active = 1, blocked_at = NULL WHERE id = ?\", (user_id,))\n    conn.commit()\n    return cursor.rowcount > 0"
+  },
+  {
+    "id": "func_020",
+    "language": "python",
+    "function_name": "get_current_user",
+    "category": "auth",
+    "description": "Декодирует JWT из заголовка запроса и возвращает данные текущего пользователя.",
+    "code": "def get_current_user(auth_header: str, secret: str) -> dict | None:\n    \"\"\"Декодирует JWT из заголовка запроса и возвращает данные текущего пользователя.\"\"\"\n    token = parse_auth_header(auth_header)\n    if not token:\n        return None\n    result = verify_jwt_token(token, secret)\n    if not result[\"valid\"]:\n        return None\n    return result[\"data\"]"
+  },
+  {
+    "id": "func_021",
+    "language": "python",
+    "function_name": "get_user_by_id",
+    "category": "database",
+    "description": "Возвращает запись пользователя по первичному ключу или None если не найден.",
+    "code": "def get_user_by_id(user_id: int, conn: object) -> dict | None:\n    \"\"\"Возвращает запись пользователя по первичному ключу или None если не найден.\"\"\"\n    cursor = conn.cursor()\n    cursor.execute(\"SELECT * FROM users WHERE id = ?\", (user_id,))\n    row = cursor.fetchone()\n    if row is None:\n        return None\n    return dict(zip([d[0] for d in cursor.description], row))"
+  },
+  {
+    "id": "func_022",
+    "language": "python",
+    "function_name": "get_user_by_email",
+    "category": "database",
+    "description": "Ищет пользователя по адресу электронной почты и возвращает запись или None.",
+    "code": "def get_user_by_email(email: str, conn: object) -> dict | None:\n    \"\"\"Ищет пользователя по адресу электронной почты и возвращает запись или None.\"\"\"\n    cursor = conn.cursor()\n    cursor.execute(\"SELECT * FROM users WHERE email = ? LIMIT 1\", (email.lower().strip(),))\n    row = cursor.fetchone()\n    if row is None:\n        return None\n    return dict(zip([d[0] for d in cursor.description], row))"
+  },
+  {
+    "id": "func_023",
+    "language": "python",
+    "function_name": "create_user",
+    "category": "database",
+    "description": "Создаёт нового пользователя в базе данных и возвращает его идентификатор.",
+    "code": "def create_user(email: str, password_hash: str, conn: object) -> int:\n    \"\"\"Создаёт нового пользователя в базе данных и возвращает его идентификатор.\"\"\"\n    cursor = conn.cursor()\n    cursor.execute(\n        \"INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)\",\n        (email.lower().strip(), password_hash, datetime.datetime.utcnow().isoformat()),\n    )\n    conn.commit()\n    return cursor.lastrowid"
+  },
+  {
+    "id": "func_024",
+    "language": "python",
+    "function_name": "update_user",
+    "category": "database",
+    "description": "Обновляет поля записи пользователя по списку переданных значений.",
+    "code": "def update_user(user_id: int, fields: dict, conn: object) -> bool:\n    \"\"\"Обновляет поля записи пользователя по списку переданных значений.\"\"\"\n    if not fields:\n        return False\n    set_clause = \", \".join(f\"{k} = ?\" for k in fields)\n    values = list(fields.values()) + [user_id]\n    cursor = conn.cursor()\n    cursor.execute(f\"UPDATE users SET {set_clause} WHERE id = ?\", values)\n    conn.commit()\n    return cursor.rowcount > 0"
+  },
+  {
+    "id": "func_025",
+    "language": "python",
+    "function_name": "delete_user",
+    "category": "database",
+    "description": "Удаляет запись пользователя из базы данных по идентификатору.",
+    "code": "def delete_user(user_id: int, conn: object) -> bool:\n    \"\"\"Удаляет запись пользователя из базы данных по идентификатору.\"\"\"\n    cursor = conn.cursor()\n    cursor.execute(\"DELETE FROM users WHERE id = ?\", (user_id,))\n    conn.commit()\n    return cursor.rowcount > 0"
+  },
+  {
+    "id": "func_026",
+    "language": "python",
+    "function_name": "list_users_paginated",
+    "category": "database",
+    "description": "Возвращает страницу пользователей с поддержкой пагинации через limit и offset.",
+    "code": "def list_users_paginated(conn: object, page: int = 1, page_size: int = 20) -> list[dict]:\n    \"\"\"Возвращает страницу пользователей с поддержкой пагинации через limit и offset.\"\"\"\n    offset = (page - 1) * page_size\n    cursor = conn.cursor()\n    cursor.execute(\"SELECT * FROM users ORDER BY id LIMIT ? OFFSET ?\", (page_size, offset))\n    columns = [d[0] for d in cursor.description]\n    return [dict(zip(columns, row)) for row in cursor.fetchall()]"
+  },
+  {
+    "id": "func_027",
+    "language": "python",
+    "function_name": "count_users",
+    "category": "database",
+    "description": "Возвращает общее количество пользователей в таблице с опциональным фильтром.",
+    "code": "def count_users(conn: object, is_active: bool | None = None) -> int:\n    \"\"\"Возвращает общее количество пользователей в таблице с опциональным фильтром.\"\"\"\n    cursor = conn.cursor()\n    if is_active is None:\n        cursor.execute(\"SELECT COUNT(*) FROM users\")\n    else:\n        cursor.execute(\"SELECT COUNT(*) FROM users WHERE is_active = ?\", (int(is_active),))\n    return cursor.fetchone()[0]"
+  },
+  {
+    "id": "func_028",
+    "language": "python",
+    "function_name": "find_orders_by_user",
+    "category": "database",
+    "description": "Возвращает список заказов конкретного пользователя, отсортированных по дате.",
+    "code": "def find_orders_by_user(user_id: int, conn: object, limit: int = 50) -> list[dict]:\n    \"\"\"Возвращает список заказов конкретного пользователя, отсортированных по дате.\"\"\"\n    cursor = conn.cursor()\n    cursor.execute(\n        \"SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT ?\",\n        (user_id, limit),\n    )\n    columns = [d[0] for d in cursor.description]\n    return [dict(zip(columns, row)) for row in cursor.fetchall()]"
+  },
+  {
+    "id": "func_029",
+    "language": "python",
+    "function_name": "soft_delete_post",
+    "category": "database",
+    "description": "Помечает публикацию как удалённую, проставляя метку времени удаления.",
+    "code": "def soft_delete_post(post_id: int, conn: object) -> bool:\n    \"\"\"Помечает публикацию как удалённую, проставляя метку времени удаления.\"\"\"\n    cursor = conn.cursor()\n    cursor.execute(\n        \"UPDATE posts SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL\",\n        (datetime.datetime.utcnow().isoformat(), post_id),\n    )\n    conn.commit()\n    return cursor.rowcount > 0"
+  },
+  {
+    "id": "func_030",
+    "language": "python",
+    "function_name": "get_db_connection",
+    "category": "database",
+    "description": "Создаёт и возвращает соединение с SQLite-базой данных с включённым WAL-режимом.",
+    "code": "def get_db_connection(db_path: str) -> sqlite3.Connection:\n    \"\"\"Создаёт и возвращает соединение с SQLite-базой данных с включённым WAL-режимом.\"\"\"\n    conn = sqlite3.connect(db_path, check_same_thread=False)\n    conn.execute(\"PRAGMA journal_mode=WAL\")\n    conn.execute(\"PRAGMA foreign_keys=ON\")\n    conn.row_factory = sqlite3.Row\n    return conn"
+  },
+  {
+    "id": "func_031",
+    "language": "python",
+    "function_name": "execute_migration",
+    "category": "database",
+    "description": "Читает SQL-файл миграции и выполняет его содержимое в транзакции.",
+    "code": "def execute_migration(migration_path: str, conn: object) -> None:\n    \"\"\"Читает SQL-файл миграции и выполняет его содержимое в транзакции.\"\"\"\n    with open(migration_path, encoding=\"utf-8\") as f:\n        sql = f.read()\n    cursor = conn.cursor()\n    cursor.executescript(sql)\n    conn.commit()"
+  },
+  {
+    "id": "func_032",
+    "language": "python",
+    "function_name": "backup_database",
+    "category": "database",
+    "description": "Создаёт резервную копию SQLite-базы в указанный файл через встроенный API бэкапа.",
+    "code": "def backup_database(source_conn: sqlite3.Connection, backup_path: str) -> None:\n    \"\"\"Создаёт резервную копию SQLite-базы в указанный файл через встроенный API бэкапа.\"\"\"\n    backup_conn = sqlite3.connect(backup_path)\n    try:\n        source_conn.backup(backup_conn, pages=100)\n    finally:\n        backup_conn.close()"
+  },
+  {
+    "id": "func_033",
+    "language": "python",
+    "function_name": "restore_from_backup",
+    "category": "database",
+    "description": "Восстанавливает базу данных из резервной копии, заменяя текущий файл.",
+    "code": "def restore_from_backup(backup_path: str, target_path: str) -> None:\n    \"\"\"Восстанавливает базу данных из резервной копии, заменяя текущий файл.\"\"\"\n    import shutil\n    if not pathlib.Path(backup_path).exists():\n        raise FileNotFoundError(f\"Backup not found: {backup_path}\")\n    shutil.copy2(backup_path, target_path)"
+  },
+  {
+    "id": "func_034",
+    "language": "python",
+    "function_name": "begin_transaction",
+    "category": "database",
+    "description": "Явно начинает транзакцию в соединении с базой данных.",
+    "code": "def begin_transaction(conn: object) -> None:\n    \"\"\"Явно начинает транзакцию в соединении с базой данных.\"\"\"\n    conn.execute(\"BEGIN\")"
+  },
+  {
+    "id": "func_035",
+    "language": "python",
+    "function_name": "commit_transaction",
+    "category": "database",
+    "description": "Фиксирует текущую транзакцию и сохраняет все изменения в базе данных.",
+    "code": "def commit_transaction(conn: object) -> None:\n    \"\"\"Фиксирует текущую транзакцию и сохраняет все изменения в базе данных.\"\"\"\n    conn.commit()"
+  },
+  {
+    "id": "func_036",
+    "language": "python",
+    "function_name": "rollback_transaction",
+    "category": "database",
+    "description": "Откатывает текущую транзакцию, отменяя все незафиксированные изменения.",
+    "code": "def rollback_transaction(conn: object) -> None:\n    \"\"\"Откатывает текущую транзакцию, отменяя все незафиксированные изменения.\"\"\"\n    conn.rollback()"
+  },
+  {
+    "id": "func_037",
+    "language": "python",
+    "function_name": "create_index",
+    "category": "database",
+    "description": "Создаёт индекс на указанной колонке таблицы если он ещё не существует.",
+    "code": "def create_index(conn: object, table: str, column: str, unique: bool = False) -> None:\n    \"\"\"Создаёт индекс на указанной колонке таблицы если он ещё не существует.\"\"\"\n    unique_kw = \"UNIQUE \" if unique else \"\"\n    idx_name = f\"idx_{table}_{column}\"\n    conn.execute(f\"CREATE {unique_kw}INDEX IF NOT EXISTS {idx_name} ON {table} ({column})\")\n    conn.commit()"
+  },
+  {
+    "id": "func_038",
+    "language": "python",
+    "function_name": "drop_table",
+    "category": "database",
+    "description": "Удаляет таблицу из базы данных если она существует.",
+    "code": "def drop_table(conn: object, table_name: str) -> None:\n    \"\"\"Удаляет таблицу из базы данных если она существует.\"\"\"\n    conn.execute(f\"DROP TABLE IF EXISTS {table_name}\")\n    conn.commit()"
+  },
+  {
+    "id": "func_039",
+    "language": "python",
+    "function_name": "find_inactive_users",
+    "category": "database",
+    "description": "Возвращает пользователей, не входивших в систему дольше указанного числа дней.",
+    "code": "def find_inactive_users(conn: object, days: int = 90) -> list[dict]:\n    \"\"\"Возвращает пользователей, не входивших в систему дольше указанного числа дней.\"\"\"\n    cutoff = (datetime.datetime.utcnow() - datetime.timedelta(days=days)).isoformat()\n    cursor = conn.cursor()\n    cursor.execute(\n        \"SELECT * FROM users WHERE last_login < ? OR last_login IS NULL\",\n        (cutoff,),\n    )\n    columns = [d[0] for d in cursor.description]\n    return [dict(zip(columns, row)) for row in cursor.fetchall()]"
+  },
+  {
+    "id": "func_040",
+    "language": "python",
+    "function_name": "bulk_insert_records",
+    "category": "database",
+    "description": "Вставляет список словарей в таблицу одним пакетным запросом executemany.",
+    "code": "def bulk_insert_records(conn: object, table: str, records: list[dict]) -> int:\n    \"\"\"Вставляет список словарей в таблицу одним пакетным запросом executemany.\"\"\"\n    if not records:\n        return 0\n    columns = list(records[0].keys())\n    placeholders = \", \".join(\"?\" * len(columns))\n    sql = f\"INSERT INTO {table} ({chr(44).join(columns)}) VALUES ({placeholders})\"\n    values = [tuple(r[c] for c in columns) for r in records]\n    cursor = conn.cursor()\n    cursor.executemany(sql, values)\n    conn.commit()\n    return cursor.rowcount"
+  },
+  {
+    "id": "func_041",
+    "language": "python",
+    "function_name": "fetch_json",
+    "category": "http",
+    "description": "Выполняет GET-запрос и возвращает тело ответа как словарь Python.",
+    "code": "def fetch_json(url: str, headers: dict | None = None, timeout: int = 10) -> dict:\n    \"\"\"Выполняет GET-запрос и возвращает тело ответа как словарь Python.\"\"\"\n    response = requests.get(url, headers=headers or {}, timeout=timeout)\n    response.raise_for_status()\n    return response.json()"
+  },
+  {
+    "id": "func_042",
+    "language": "python",
+    "function_name": "post_json",
+    "category": "http",
+    "description": "Отправляет POST-запрос с JSON-телом и возвращает ответ как словарь.",
+    "code": "def post_json(url: str, payload: dict, headers: dict | None = None, timeout: int = 10) -> dict:\n    \"\"\"Отправляет POST-запрос с JSON-телом и возвращает ответ как словарь.\"\"\"\n    response = requests.post(url, json=payload, headers=headers or {}, timeout=timeout)\n    response.raise_for_status()\n    return response.json()"
+  },
+  {
+    "id": "func_043",
+    "language": "python",
+    "function_name": "download_file",
+    "category": "http",
+    "description": "Скачивает файл по URL и сохраняет его на диск потоковой записью.",
+    "code": "def download_file(url: str, dest_path: str, chunk_size: int = 8192) -> None:\n    \"\"\"Скачивает файл по URL и сохраняет его на диск потоковой записью.\"\"\"\n    with requests.get(url, stream=True, timeout=30) as resp:\n        resp.raise_for_status()\n        with open(dest_path, \"wb\") as f:\n            for chunk in resp.iter_content(chunk_size=chunk_size):\n                f.write(chunk)"
+  },
+  {
+    "id": "func_044",
+    "language": "python",
+    "function_name": "retry_request",
+    "category": "http",
+    "description": "Повторяет HTTP-запрос с экспоненциальной задержкой при ошибках соединения.",
+    "code": "def retry_request(url: str, method: str = \"GET\", max_retries: int = 3,\n                  backoff: float = 1.0, **kwargs) -> requests.Response:\n    \"\"\"Повторяет HTTP-запрос с экспоненциальной задержкой при ошибках соединения.\"\"\"\n    for attempt in range(max_retries):\n        try:\n            resp = requests.request(method, url, timeout=10, **kwargs)\n            resp.raise_for_status()\n            return resp\n        except requests.RequestException:\n            if attempt == max_retries - 1:\n                raise\n            time.sleep(backoff * (2 ** attempt))"
+  },
+  {
+    "id": "func_045",
+    "language": "python",
+    "function_name": "parse_pagination_links",
+    "category": "http",
+    "description": "Разбирает заголовок Link HTTP-ответа и возвращает словарь rel->url.",
+    "code": "def parse_pagination_links(link_header: str) -> dict[str, str]:\n    \"\"\"Разбирает заголовок Link HTTP-ответа и возвращает словарь rel->url.\"\"\"\n    result: dict[str, str] = {}\n    if not link_header:\n        return result\n    for part in link_header.split(\",\"):\n        url_part, *params = part.strip().split(\";\")\n        url = url_part.strip().strip(\"<>\")\n        for param in params:\n            if \"rel=\" in param:\n                rel = param.split(\"=\")[1].strip().strip('\"')\n                result[rel] = url\n    return result"
+  },
+  {
+    "id": "func_046",
+    "language": "python",
+    "function_name": "send_webhook",
+    "category": "http",
+    "description": "Отправляет POST-уведомление на webhook-URL с подписью HMAC в заголовке.",
+    "code": "def send_webhook(url: str, payload: dict, secret: str, timeout: int = 5) -> int:\n    \"\"\"Отправляет POST-уведомление на webhook-URL с подписью HMAC в заголовке.\"\"\"\n    body = json.dumps(payload, ensure_ascii=False).encode(\"utf-8\")\n    sig = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()\n    headers = {\"Content-Type\": \"application/json\", \"X-Signature-256\": f\"sha256={sig}\"}\n    resp = requests.post(url, data=body, headers=headers, timeout=timeout)\n    return resp.status_code"
+  },
+  {
+    "id": "func_047",
+    "language": "python",
+    "function_name": "handle_rate_limit",
+    "category": "http",
+    "description": "Обрабатывает ответ 429, ожидая время из заголовка Retry-After перед повтором.",
+    "code": "def handle_rate_limit(response: requests.Response) -> None:\n    \"\"\"Обрабатывает ответ 429, ожидая время из заголовка Retry-After перед повтором.\"\"\"\n    if response.status_code != 429:\n        return\n    retry_after = response.headers.get(\"Retry-After\", \"5\")\n    try:\n        wait = float(retry_after)\n    except ValueError:\n        wait = 5.0\n    time.sleep(min(wait, 60.0))"
+  },
+  {
+    "id": "func_048",
+    "language": "python",
+    "function_name": "fetch_with_timeout",
+    "category": "http",
+    "description": "Выполняет HTTP GET с настраиваемыми таймаутами подключения и чтения.",
+    "code": "def fetch_with_timeout(url: str, connect_timeout: float = 3.0,\n                       read_timeout: float = 10.0) -> requests.Response:\n    \"\"\"Выполняет HTTP GET с настраиваемыми таймаутами подключения и чтения.\"\"\"\n    return requests.get(url, timeout=(connect_timeout, read_timeout))"
+  },
+  {
+    "id": "func_049",
+    "language": "python",
+    "function_name": "proxy_request",
+    "category": "http",
+    "description": "Проксирует входящий запрос на целевой URL и возвращает ответ бэкенда.",
+    "code": "def proxy_request(target_url: str, method: str, headers: dict,\n                  body: bytes | None = None) -> requests.Response:\n    \"\"\"Проксирует входящий запрос на целевой URL и возвращает ответ бэкенда.\"\"\"\n    hop_by_hop = {\"connection\", \"keep-alive\", \"transfer-encoding\", \"te\",\n                  \"upgrade\", \"proxy-authorization\", \"proxy-authenticate\"}\n    clean_headers = {k: v for k, v in headers.items() if k.lower() not in hop_by_hop}\n    return requests.request(method, target_url, headers=clean_headers,\n                            data=body, timeout=15, allow_redirects=False)"
+  },
+  {
+    "id": "func_050",
+    "language": "python",
+    "function_name": "measure_latency",
+    "category": "http",
+    "description": "Измеряет время ответа HTTP-эндпоинта в миллисекундах.",
+    "code": "def measure_latency(url: str, method: str = \"GET\", **kwargs) -> float:\n    \"\"\"Измеряет время ответа HTTP-эндпоинта в миллисекундах.\"\"\"\n    start = time.monotonic()\n    try:\n        requests.request(method, url, timeout=10, **kwargs)\n    except requests.RequestException:\n        pass\n    return (time.monotonic() - start) * 1000"
+  },
+  {
+    "id": "func_051",
+    "language": "python",
+    "function_name": "parse_jsonapi_response",
+    "category": "http",
+    "description": "Разбирает JSON:API-ответ и возвращает список ресурсов с разрешёнными связями.",
+    "code": "def parse_jsonapi_response(response_body: dict) -> list[dict]:\n    \"\"\"Разбирает JSON:API-ответ и возвращает список ресурсов с разрешёнными связями.\"\"\"\n    included = {(r[\"type\"], r[\"id\"]): r for r in response_body.get(\"included\", [])}\n    result = []\n    for item in response_body.get(\"data\", []):\n        obj = {\"id\": item[\"id\"], \"type\": item[\"type\"], **item.get(\"attributes\", {})}\n        for rel_name, rel_data in item.get(\"relationships\", {}).items():\n            ref = rel_data.get(\"data\")\n            if ref:\n                obj[rel_name] = included.get((ref[\"type\"], ref[\"id\"]), ref)\n        result.append(obj)\n    return result"
+  },
+  {
+    "id": "func_052",
+    "language": "python",
+    "function_name": "upload_file_multipart",
+    "category": "http",
+    "description": "Загружает файл на сервер через multipart/form-data POST-запрос.",
+    "code": "def upload_file_multipart(url: str, file_path: str, field_name: str = \"file\",\n                          extra_fields: dict | None = None) -> dict:\n    \"\"\"Загружает файл на сервер через multipart/form-data POST-запрос.\"\"\"\n    with open(file_path, \"rb\") as f:\n        files = {field_name: (pathlib.Path(file_path).name, f)}\n        data = extra_fields or {}\n        resp = requests.post(url, files=files, data=data, timeout=60)\n    resp.raise_for_status()\n    return resp.json()"
+  },
+  {
+    "id": "func_053",
+    "language": "python",
+    "function_name": "fetch_paginated_results",
+    "category": "http",
+    "description": "Обходит все страницы пагинированного API и собирает результаты в один список.",
+    "code": "def fetch_paginated_results(url: str, headers: dict | None = None) -> list[dict]:\n    \"\"\"Обходит все страницы пагинированного API и собирает результаты в один список.\"\"\"\n    all_items: list[dict] = []\n    next_url: str | None = url\n    while next_url:\n        resp = requests.get(next_url, headers=headers or {}, timeout=10)\n        resp.raise_for_status()\n        body = resp.json()\n        all_items.extend(body.get(\"data\", body if isinstance(body, list) else []))\n        links = parse_pagination_links(resp.headers.get(\"Link\", \"\"))\n        next_url = links.get(\"next\")\n    return all_items"
+  },
+  {
+    "id": "func_054",
+    "language": "python",
+    "function_name": "add_auth_headers",
+    "category": "http",
+    "description": "Добавляет заголовок Authorization к словарю заголовков HTTP-запроса.",
+    "code": "def add_auth_headers(headers: dict, token: str, scheme: str = \"Bearer\") -> dict:\n    \"\"\"Добавляет заголовок Authorization к словарю заголовков HTTP-запроса.\"\"\"\n    result = dict(headers)\n    result[\"Authorization\"] = f\"{scheme} {token}\"\n    return result"
+  },
+  {
+    "id": "func_055",
+    "language": "python",
+    "function_name": "parse_response_headers",
+    "category": "http",
+    "description": "Извлекает из HTTP-ответа набор стандартных мета-заголовков в словарь.",
+    "code": "def parse_response_headers(response: requests.Response) -> dict:\n    \"\"\"Извлекает из HTTP-ответа набор стандартных мета-заголовков в словарь.\"\"\"\n    return {\n        \"content_type\": response.headers.get(\"Content-Type\", \"\"),\n        \"content_length\": response.headers.get(\"Content-Length\"),\n        \"etag\": response.headers.get(\"ETag\"),\n        \"last_modified\": response.headers.get(\"Last-Modified\"),\n        \"x_request_id\": response.headers.get(\"X-Request-Id\"),\n    }"
+  },
+  {
+    "id": "func_056",
+    "language": "python",
+    "function_name": "handle_redirect",
+    "category": "http",
+    "description": "Следует за HTTP-редиректом вручную и возвращает финальный ответ.",
+    "code": "def handle_redirect(url: str, max_hops: int = 5) -> requests.Response:\n    \"\"\"Следует за HTTP-редиректом вручную и возвращает финальный ответ.\"\"\"\n    current_url = url\n    for _ in range(max_hops):\n        resp = requests.get(current_url, allow_redirects=False, timeout=10)\n        if resp.status_code in (301, 302, 303, 307, 308):\n            current_url = resp.headers.get(\"Location\", current_url)\n        else:\n            return resp\n    raise RuntimeError(f\"Too many redirects for {url}\")"
+  },
+  {
+    "id": "func_057",
+    "language": "python",
+    "function_name": "cache_response",
+    "category": "http",
+    "description": "Кэширует результат GET-запроса в памяти на указанное число секунд.",
+    "code": "def cache_response(url: str, cache: dict, ttl: int = 60,\n                   headers: dict | None = None) -> dict:\n    \"\"\"Кэширует результат GET-запроса в памяти на указанное число секунд.\"\"\"\n    entry = cache.get(url)\n    if entry and time.time() - entry[\"ts\"] < ttl:\n        return entry[\"data\"]\n    data = fetch_json(url, headers=headers)\n    cache[url] = {\"data\": data, \"ts\": time.time()}\n    return data"
+  },
+  {
+    "id": "func_058",
+    "language": "python",
+    "function_name": "compress_request_body",
+    "category": "http",
+    "description": "Сжимает тело запроса с помощью gzip и добавляет соответствующий заголовок.",
+    "code": "def compress_request_body(payload: dict) -> tuple[bytes, dict]:\n    \"\"\"Сжимает тело запроса с помощью gzip и добавляет соответствующий заголовок.\"\"\"\n    raw = json.dumps(payload, ensure_ascii=False).encode(\"utf-8\")\n    buf = io.BytesIO()\n    with gzip.GzipFile(fileobj=buf, mode=\"wb\") as gz:\n        gz.write(raw)\n    compressed = buf.getvalue()\n    headers = {\"Content-Encoding\": \"gzip\", \"Content-Type\": \"application/json\"}\n    return compressed, headers"
+  },
+  {
+    "id": "func_059",
+    "language": "python",
+    "function_name": "validate_ssl_cert",
+    "category": "http",
+    "description": "Проверяет SSL-сертификат хоста и возвращает дату истечения его срока.",
+    "code": "def validate_ssl_cert(hostname: str, port: int = 443) -> dict:\n    \"\"\"Проверяет SSL-сертификат хоста и возвращает дату истечения его срока.\"\"\"\n    import ssl, socket\n    ctx = ssl.create_default_context()\n    with ctx.wrap_socket(socket.socket(), server_hostname=hostname) as sock:\n        sock.settimeout(5)\n        sock.connect((hostname, port))\n        cert = sock.getpeercert()\n    expires = datetime.datetime.strptime(cert[\"notAfter\"], \"%b %d %H:%M:%S %Y %Z\")\n    days_left = (expires - datetime.datetime.utcnow()).days\n    return {\"expires_at\": expires.isoformat(), \"days_left\": days_left, \"valid\": days_left > 0}"
+  },
+  {
+    "id": "func_060",
+    "language": "python",
+    "function_name": "broadcast_to_servers",
+    "category": "http",
+    "description": "Отправляет одинаковый POST-запрос на список серверов и собирает статусы ответов.",
+    "code": "def broadcast_to_servers(urls: list[str], payload: dict,\n                         headers: dict | None = None) -> list[dict]:\n    \"\"\"Отправляет одинаковый POST-запрос на список серверов и собирает статусы ответов.\"\"\"\n    results = []\n    for url in urls:\n        try:\n            resp = requests.post(url, json=payload, headers=headers or {}, timeout=5)\n            results.append({\"url\": url, \"status\": resp.status_code, \"ok\": resp.ok})\n        except requests.RequestException as e:\n            results.append({\"url\": url, \"status\": None, \"ok\": False, \"error\": str(e)})\n    return results"
+  },
+  {
+    "id": "func_061",
+    "language": "python",
+    "function_name": "validate_email",
+    "category": "validation",
+    "description": "Проверяет корректность формата адреса электронной почты по регулярному выражению.",
+    "code": "def validate_email(email: str) -> bool:\n    \"\"\"Проверяет корректность формата адреса электронной почты по регулярному выражению.\"\"\"\n    pattern = r\"^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$\"\n    return bool(re.match(pattern, email.strip()))"
+  },
+  {
+    "id": "func_062",
+    "language": "python",
+    "function_name": "validate_phone",
+    "category": "validation",
+    "description": "Проверяет, что номер телефона соответствует формату E.164.",
+    "code": "def validate_phone(phone: str) -> bool:\n    \"\"\"Проверяет, что номер телефона соответствует формату E.164.\"\"\"\n    return bool(re.match(r\"^\\+[1-9]\\d{6,14}$\", phone.strip()))"
+  },
+  {
+    "id": "func_063",
+    "language": "python",
+    "function_name": "validate_age",
+    "category": "validation",
+    "description": "Проверяет допустимость возраста: целое положительное число не более 150.",
+    "code": "def validate_age(age: int) -> bool:\n    \"\"\"Проверяет допустимость возраста: целое положительное число не более 150.\"\"\"\n    return isinstance(age, int) and 0 < age < 150"
+  },
+  {
+    "id": "func_064",
+    "language": "python",
+    "function_name": "sanitize_html",
+    "category": "validation",
+    "description": "Удаляет все HTML-теги из строки, оставляя только текстовое содержимое.",
+    "code": "def sanitize_html(text: str) -> str:\n    \"\"\"Удаляет все HTML-теги из строки, оставляя только текстовое содержимое.\"\"\"\n    clean = re.sub(r\"<[^>]+>\", \"\", text)\n    clean = re.sub(r\"&[a-zA-Z]+;\", \" \", clean)\n    return clean.strip()"
+  },
+  {
+    "id": "func_065",
+    "language": "python",
+    "function_name": "parse_iso_date",
+    "category": "validation",
+    "description": "Разбирает строку ISO-8601 в объект datetime с обработкой ошибок формата.",
+    "code": "def parse_iso_date(date_str: str) -> datetime.datetime | None:\n    \"\"\"Разбирает строку ISO-8601 в объект datetime с обработкой ошибок формата.\"\"\"\n    try:\n        return datetime.datetime.fromisoformat(date_str.replace(\"Z\", \"+00:00\"))\n    except (ValueError, AttributeError):\n        return None"
+  },
+  {
+    "id": "func_066",
+    "language": "python",
+    "function_name": "validate_credit_card",
+    "category": "validation",
+    "description": "Проверяет номер банковской карты по алгоритму Луна.",
+    "code": "def validate_credit_card(number: str) -> bool:\n    \"\"\"Проверяет номер банковской карты по алгоритму Луна.\"\"\"\n    digits = [int(c) for c in number.replace(\" \", \"\").replace(\"-\", \"\") if c.isdigit()]\n    if len(digits) < 13:\n        return False\n    total = 0\n    for i, d in enumerate(reversed(digits)):\n        if i % 2 == 1:\n            d *= 2\n            if d > 9:\n                d -= 9\n        total += d\n    return total % 10 == 0"
+  },
+  {
+    "id": "func_067",
+    "language": "python",
+    "function_name": "check_password_strength",
+    "category": "validation",
+    "description": "Оценивает сложность пароля и возвращает уровень: weak, medium или strong.",
+    "code": "def check_password_strength(password: str) -> str:\n    \"\"\"Оценивает сложность пароля и возвращает уровень: weak, medium или strong.\"\"\"\n    if len(password) < 8:\n        return \"weak\"\n    has_upper = bool(re.search(r\"[A-Z]\", password))\n    has_lower = bool(re.search(r\"[a-z]\", password))\n    has_digit = bool(re.search(r\"\\d\", password))\n    has_special = bool(re.search(r\"[^\\w]\", password))\n    score = sum([has_upper, has_lower, has_digit, has_special])\n    if score >= 4 and len(password) >= 12:\n        return \"strong\"\n    if score >= 3:\n        return \"medium\"\n    return \"weak\""
+  },
+  {
+    "id": "func_068",
+    "language": "python",
+    "function_name": "validate_url",
+    "category": "validation",
+    "description": "Проверяет корректность URL, требуя наличие схемы http/https и хоста.",
+    "code": "def validate_url(url: str) -> bool:\n    \"\"\"Проверяет корректность URL, требуя наличие схемы http/https и хоста.\"\"\"\n    try:\n        parsed = urllib.parse.urlparse(url)\n        return parsed.scheme in (\"http\", \"https\") and bool(parsed.netloc)\n    except Exception:\n        return False"
+  },
+  {
+    "id": "func_069",
+    "language": "python",
+    "function_name": "parse_query_string",
+    "category": "validation",
+    "description": "Разбирает строку URL-параметров и возвращает словарь ключ-значение.",
+    "code": "def parse_query_string(query: str) -> dict[str, str | list[str]]:\n    \"\"\"Разбирает строку URL-параметров и возвращает словарь ключ-значение.\"\"\"\n    parsed = urllib.parse.parse_qs(query.lstrip(\"?\"), keep_blank_values=True)\n    return {k: v[0] if len(v) == 1 else v for k, v in parsed.items()}"
+  },
+  {
+    "id": "func_070",
+    "language": "python",
+    "function_name": "normalize_phone_number",
+    "category": "validation",
+    "description": "Приводит российский номер телефона к формату +7XXXXXXXXXX.",
+    "code": "def normalize_phone_number(phone: str) -> str | None:\n    \"\"\"Приводит российский номер телефона к формату +7XXXXXXXXXX.\"\"\"\n    digits = re.sub(r\"\\D\", \"\", phone)\n    if len(digits) == 11 and digits[0] in (\"7\", \"8\"):\n        return \"+7\" + digits[1:]\n    if len(digits) == 10:\n        return \"+7\" + digits\n    return None"
+  },
+  {
+    "id": "func_071",
+    "language": "python",
+    "function_name": "validate_inn",
+    "category": "validation",
+    "description": "Проверяет корректность ИНН физического или юридического лица по контрольной сумме.",
+    "code": "def validate_inn(inn: str) -> bool:\n    \"\"\"Проверяет корректность ИНН физического или юридического лица по контрольной сумме.\"\"\"\n    if not inn.isdigit():\n        return False\n    if len(inn) == 10:\n        weights = [2, 4, 10, 3, 5, 9, 4, 6, 8]\n        check = sum(w * int(d) for w, d in zip(weights, inn)) % 11 % 10\n        return check == int(inn[9])\n    if len(inn) == 12:\n        w1 = [7, 2, 4, 10, 3, 5, 9, 4, 6, 8]\n        w2 = [3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8]\n        c1 = sum(w * int(d) for w, d in zip(w1, inn)) % 11 % 10\n        c2 = sum(w * int(d) for w, d in zip(w2, inn)) % 11 % 10\n        return c1 == int(inn[10]) and c2 == int(inn[11])\n    return False"
+  },
+  {
+    "id": "func_072",
+    "language": "python",
+    "function_name": "validate_snils",
+    "category": "validation",
+    "description": "Проверяет корректность номера СНИЛС по контрольной сумме.",
+    "code": "def validate_snils(snils: str) -> bool:\n    \"\"\"Проверяет корректность номера СНИЛС по контрольной сумме.\"\"\"\n    digits = re.sub(r\"\\D\", \"\", snils)\n    if len(digits) != 11:\n        return False\n    number = int(digits[:9])\n    if number < 1001998:\n        return True\n    total = sum((9 - i) * int(digits[i]) for i in range(9))\n    check = total % 101\n    if check >= 100:\n        check = 0\n    return check == int(digits[9:11])"
+  },
+  {
+    "id": "func_073",
+    "language": "python",
+    "function_name": "validate_passport_rf",
+    "category": "validation",
+    "description": "Проверяет формат российского паспорта: 4 цифры серии и 6 цифр номера.",
+    "code": "def validate_passport_rf(passport: str) -> bool:\n    \"\"\"Проверяет формат российского паспорта: 4 цифры серии и 6 цифр номера.\"\"\"\n    digits = re.sub(r\"\\s\", \"\", passport)\n    return bool(re.match(r\"^\\d{10}$\", digits))"
+  },
+  {
+    "id": "func_074",
+    "language": "python",
+    "function_name": "strip_emoji",
+    "category": "validation",
+    "description": "Удаляет все эмодзи и спецсимволы Юникода из строки.",
+    "code": "def strip_emoji(text: str) -> str:\n    \"\"\"Удаляет все эмодзи и спецсимволы Юникода из строки.\"\"\"\n    emoji_pattern = re.compile(\n        \"[\\U0001F600-\\U0001F64F\\U0001F300-\\U0001F5FF\"\n        \"\\U0001F680-\\U0001F6FF\\U0001F1E0-\\U0001F1FF\"\n        \"\\U00002702-\\U000027B0\\U000024C2-\\U0001F251]+\",\n        flags=re.UNICODE,\n    )\n    return emoji_pattern.sub(\"\", text).strip()"
+  },
+  {
+    "id": "func_075",
+    "language": "python",
+    "function_name": "validate_color_hex",
+    "category": "validation",
+    "description": "Проверяет, что строка является валидным HEX-цветом в формате #RGB или #RRGGBB.",
+    "code": "def validate_color_hex(color: str) -> bool:\n    \"\"\"Проверяет, что строка является валидным HEX-цветом в формате #RGB или #RRGGBB.\"\"\"\n    return bool(re.match(r\"^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$\", color))"
+  },
+  {
+    "id": "func_076",
+    "language": "python",
+    "function_name": "parse_csv_row",
+    "category": "validation",
+    "description": "Разбирает одну строку CSV с учётом кавычек и возвращает список значений.",
+    "code": "def parse_csv_row(row: str, delimiter: str = \",\") -> list[str]:\n    \"\"\"Разбирает одну строку CSV с учётом кавычек и возвращает список значений.\"\"\"\n    reader = csv.reader([row], delimiter=delimiter)\n    return next(reader)"
+  },
+  {
+    "id": "func_077",
+    "language": "python",
+    "function_name": "validate_zip_code",
+    "category": "validation",
+    "description": "Проверяет российский почтовый индекс: ровно 6 цифр от 100000 до 999999.",
+    "code": "def validate_zip_code(code: str) -> bool:\n    \"\"\"Проверяет российский почтовый индекс: ровно 6 цифр от 100000 до 999999.\"\"\"\n    stripped = code.strip()\n    if not re.match(r\"^\\d{6}$\", stripped):\n        return False\n    return 100000 <= int(stripped) <= 999999"
+  },
+  {
+    "id": "func_078",
+    "language": "python",
+    "function_name": "detect_language",
+    "category": "validation",
+    "description": "Определяет язык текста: возвращает 'ru' при преобладании кириллицы, иначе 'en'.",
+    "code": "def detect_language(text: str) -> str:\n    \"\"\"Определяет язык текста: возвращает 'ru' при преобладании кириллицы, иначе 'en'.\"\"\"\n    cyrillic = len(re.findall(r\"[а-яёА-ЯЁ]\", text))\n    latin = len(re.findall(r\"[a-zA-Z]\", text))\n    return \"ru\" if cyrillic > latin else \"en\""
+  },
+  {
+    "id": "func_079",
+    "language": "python",
+    "function_name": "validate_iban",
+    "category": "validation",
+    "description": "Проверяет IBAN по стандарту ISO 13616 с вычислением контрольной суммы mod 97.",
+    "code": "def validate_iban(iban: str) -> bool:\n    \"\"\"Проверяет IBAN по стандарту ISO 13616 с вычислением контрольной суммы mod 97.\"\"\"\n    iban = iban.replace(\" \", \"\").upper()\n    if len(iban) < 5:\n        return False\n    rearranged = iban[4:] + iban[:4]\n    numeric = \"\".join(str(ord(c) - 55) if c.isalpha() else c for c in rearranged)\n    try:\n        return int(numeric) % 97 == 1\n    except ValueError:\n        return False"
+  },
+  {
+    "id": "func_080",
+    "language": "python",
+    "function_name": "extract_phone_numbers",
+    "category": "validation",
+    "description": "Находит все телефонные номера в тексте и возвращает их список.",
+    "code": "def extract_phone_numbers(text: str) -> list[str]:\n    \"\"\"Находит все телефонные номера в тексте и возвращает их список.\"\"\"\n    pattern = r\"(?:\\+7|8)[\\s\\-]?\\(?\\d{3}\\)?[\\s\\-]?\\d{3}[\\s\\-]?\\d{2}[\\s\\-]?\\d{2}\"\n    return re.findall(pattern, text)"
+  },
+  {
+    "id": "func_081",
+    "language": "python",
+    "function_name": "format_bytes",
+    "category": "utils",
+    "description": "Форматирует количество байт в читаемую строку с суффиксом KB, MB, GB или TB.",
+    "code": "def format_bytes(size: int) -> str:\n    \"\"\"Форматирует количество байт в читаемую строку с суффиксом KB, MB, GB или TB.\"\"\"\n    for unit in (\"B\", \"KB\", \"MB\", \"GB\", \"TB\"):\n        if abs(size) < 1024:\n            return f\"{size:.1f} {unit}\"\n        size /= 1024\n    return f\"{size:.1f} PB\""
+  },
+  {
+    "id": "func_082",
+    "language": "python",
+    "function_name": "chunk_list",
+    "category": "utils",
+    "description": "Разбивает список на подсписки фиксированного размера.",
+    "code": "def chunk_list(lst: list, size: int) -> list[list]:\n    \"\"\"Разбивает список на подсписки фиксированного размера.\"\"\"\n    if size <= 0:\n        raise ValueError(\"size must be positive\")\n    return [lst[i:i + size] for i in range(0, len(lst), size)]"
+  },
+  {
+    "id": "func_083",
+    "language": "python",
+    "function_name": "flatten_dict",
+    "category": "utils",
+    "description": "Преобразует вложенный словарь в плоский с ключами через разделитель.",
+    "code": "def flatten_dict(d: dict, parent_key: str = \"\", sep: str = \".\") -> dict:\n    \"\"\"Преобразует вложенный словарь в плоский с ключами через разделитель.\"\"\"\n    items: list = []\n    for k, v in d.items():\n        new_key = f\"{parent_key}{sep}{k}\" if parent_key else k\n        if isinstance(v, dict):\n            items.extend(flatten_dict(v, new_key, sep).items())\n        else:\n            items.append((new_key, v))\n    return dict(items)"
+  },
+  {
+    "id": "func_084",
+    "language": "python",
+    "function_name": "retry_decorator",
+    "category": "utils",
+    "description": "Декоратор-фабрика для автоматического повтора функции при заданных исключениях.",
+    "code": "def retry_decorator(max_retries: int = 3, exceptions: tuple = (Exception,),\n                    delay: float = 1.0):\n    \"\"\"Декоратор-фабрика для автоматического повтора функции при заданных исключениях.\"\"\"\n    def decorator(func):\n        @functools.wraps(func)\n        def wrapper(*args, **kwargs):\n            for attempt in range(max_retries):\n                try:\n                    return func(*args, **kwargs)\n                except exceptions:\n                    if attempt == max_retries - 1:\n                        raise\n                    time.sleep(delay * (2 ** attempt))\n        return wrapper\n    return decorator"
+  },
+  {
+    "id": "func_085",
+    "language": "python",
+    "function_name": "memoize",
+    "category": "utils",
+    "description": "Декоратор кэширования результатов функции по позиционным и именованным аргументам.",
+    "code": "def memoize(func):\n    \"\"\"Декоратор кэширования результатов функции по позиционным и именованным аргументам.\"\"\"\n    cache: dict = {}\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        key = (args, tuple(sorted(kwargs.items())))\n        if key not in cache:\n            cache[key] = func(*args, **kwargs)\n        return cache[key]\n    return wrapper"
+  },
+  {
+    "id": "func_086",
+    "language": "python",
+    "function_name": "timing_decorator",
+    "category": "utils",
+    "description": "Декоратор, измеряющий и логирующий время выполнения обёрнутой функции.",
+    "code": "def timing_decorator(func):\n    \"\"\"Декоратор, измеряющий и логирующий время выполнения обёрнутой функции.\"\"\"\n    @functools.wraps(func)\n    def wrapper(*args, **kwargs):\n        start = time.perf_counter()\n        result = func(*args, **kwargs)\n        elapsed = (time.perf_counter() - start) * 1000\n        print(f\"{func.__name__} took {elapsed:.2f}ms\")\n        return result\n    return wrapper"
+  },
+  {
+    "id": "func_087",
+    "language": "python",
+    "function_name": "deep_merge_dicts",
+    "category": "utils",
+    "description": "Рекурсивно объединяет два словаря, значения из второго перекрывают первый.",
+    "code": "def deep_merge_dicts(base: dict, override: dict) -> dict:\n    \"\"\"Рекурсивно объединяет два словаря, значения из второго перекрывают первый.\"\"\"\n    result = dict(base)\n    for key, value in override.items():\n        if key in result and isinstance(result[key], dict) and isinstance(value, dict):\n            result[key] = deep_merge_dicts(result[key], value)\n        else:\n            result[key] = value\n    return result"
+  },
+  {
+    "id": "func_088",
+    "language": "python",
+    "function_name": "format_duration",
+    "category": "utils",
+    "description": "Форматирует количество секунд в строку вида «1ч 23м 45с».",
+    "code": "def format_duration(seconds: int) -> str:\n    \"\"\"Форматирует количество секунд в строку вида «1ч 23м 45с».\"\"\"\n    if seconds < 0:\n        raise ValueError(\"seconds must be non-negative\")\n    h, remainder = divmod(seconds, 3600)\n    m, s = divmod(remainder, 60)\n    parts = []\n    if h:\n        parts.append(f\"{h}ч\")\n    if m or h:\n        parts.append(f\"{m}м\")\n    parts.append(f\"{s}с\")\n    return \" \".join(parts)"
+  },
+  {
+    "id": "func_089",
+    "language": "python",
+    "function_name": "get_unique_id",
+    "category": "utils",
+    "description": "Генерирует строковый UUID4 без дефисов для использования как уникальный ключ.",
+    "code": "def get_unique_id() -> str:\n    \"\"\"Генерирует строковый UUID4 без дефисов для использования как уникальный ключ.\"\"\"\n    return uuid.uuid4().hex"
+  },
+  {
+    "id": "func_090",
+    "language": "python",
+    "function_name": "truncate_string",
+    "category": "utils",
+    "description": "Обрезает строку до указанной длины, добавляя многоточие если строка длиннее.",
+    "code": "def truncate_string(text: str, max_len: int, ellipsis: str = \"…\") -> str:\n    \"\"\"Обрезает строку до указанной длины, добавляя многоточие если строка длиннее.\"\"\"\n    if len(text) <= max_len:\n        return text\n    return text[:max_len - len(ellipsis)] + ellipsis"
+  },
+  {
+    "id": "func_091",
+    "language": "python",
+    "function_name": "slugify",
+    "category": "utils",
+    "description": "Преобразует произвольный текст в URL-безопасный slug в нижнем регистре.",
+    "code": "def slugify(text: str) -> str:\n    \"\"\"Преобразует произвольный текст в URL-безопасный slug в нижнем регистре.\"\"\"\n    text = text.lower().strip()\n    text = re.sub(r\"[^\\w\\s-]\", \"\", text)\n    text = re.sub(r\"[\\s_]+\", \"-\", text)\n    text = re.sub(r\"-+\", \"-\", text)\n    return text.strip(\"-\")"
+  },
+  {
+    "id": "func_092",
+    "language": "python",
+    "function_name": "calculate_hash",
+    "category": "utils",
+    "description": "Вычисляет SHA-256 хэш содержимого файла и возвращает шестнадцатеричную строку.",
+    "code": "def calculate_hash(file_path: str, algorithm: str = \"sha256\") -> str:\n    \"\"\"Вычисляет SHA-256 хэш содержимого файла и возвращает шестнадцатеричную строку.\"\"\"\n    h = hashlib.new(algorithm)\n    with open(file_path, \"rb\") as f:\n        for chunk in iter(lambda: f.read(8192), b\"\"):\n            h.update(chunk)\n    return h.hexdigest()"
+  },
+  {
+    "id": "func_093",
+    "language": "python",
+    "function_name": "read_yaml_file",
+    "category": "utils",
+    "description": "Читает YAML-файл и возвращает его содержимое как словарь Python.",
+    "code": "def read_yaml_file(path: str) -> dict:\n    \"\"\"Читает YAML-файл и возвращает его содержимое как словарь Python.\"\"\"\n    with open(path, encoding=\"utf-8\") as f:\n        return yaml.safe_load(f) or {}"
+  },
+  {
+    "id": "func_094",
+    "language": "python",
+    "function_name": "write_pickle",
+    "category": "utils",
+    "description": "Сериализует объект в файл формата pickle с указанным уровнем компрессии.",
+    "code": "def write_pickle(obj: object, path: str) -> None:\n    \"\"\"Сериализует объект в файл формата pickle с указанным уровнем компрессии.\"\"\"\n    with open(path, \"wb\") as f:\n        pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)"
+  },
+  {
+    "id": "func_095",
+    "language": "python",
+    "function_name": "compress_file",
+    "category": "utils",
+    "description": "Сжимает файл с помощью gzip и сохраняет результат рядом с расширением .gz.",
+    "code": "def compress_file(src_path: str, dst_path: str | None = None) -> str:\n    \"\"\"Сжимает файл с помощью gzip и сохраняет результат рядом с расширением .gz.\"\"\"\n    dst = dst_path or src_path + \".gz\"\n    with open(src_path, \"rb\") as f_in:\n        with gzip.open(dst, \"wb\", compresslevel=6) as f_out:\n            f_out.write(f_in.read())\n    return dst"
+  },
+  {
+    "id": "func_096",
+    "language": "python",
+    "function_name": "decompress_file",
+    "category": "utils",
+    "description": "Распаковывает gzip-файл и сохраняет содержимое в указанный путь.",
+    "code": "def decompress_file(src_path: str, dst_path: str) -> None:\n    \"\"\"Распаковывает gzip-файл и сохраняет содержимое в указанный путь.\"\"\"\n    with gzip.open(src_path, \"rb\") as f_in:\n        with open(dst_path, \"wb\") as f_out:\n            f_out.write(f_in.read())"
+  },
+  {
+    "id": "func_097",
+    "language": "python",
+    "function_name": "send_email",
+    "category": "utils",
+    "description": "Отправляет HTML-письмо через SMTP-сервер с поддержкой STARTTLS.",
+    "code": "def send_email(to: str, subject: str, html_body: str,\n               smtp_host: str, smtp_port: int = 587,\n               login: str = \"\", password: str = \"\") -> None:\n    \"\"\"Отправляет HTML-письмо через SMTP-сервер с поддержкой STARTTLS.\"\"\"\n    msg = email_module.MIMEMultipart(\"alternative\")\n    msg[\"Subject\"] = subject\n    msg[\"From\"] = login\n    msg[\"To\"] = to\n    msg.attach(email_module.MIMEText(html_body, \"html\", \"utf-8\"))\n    with smtplib.SMTP(smtp_host, smtp_port) as server:\n        server.starttls()\n        if login and password:\n            server.login(login, password)\n        server.sendmail(login, [to], msg.as_string())"
+  },
+  {
+    "id": "func_098",
+    "language": "python",
+    "function_name": "log_event",
+    "category": "utils",
+    "description": "Записывает структурированное событие в лог-файл в формате JSON.",
+    "code": "def log_event(event_type: str, data: dict, log_path: str) -> None:\n    \"\"\"Записывает структурированное событие в лог-файл в формате JSON.\"\"\"\n    entry = {\n        \"ts\": datetime.datetime.utcnow().isoformat(),\n        \"event\": event_type,\n        **data,\n    }\n    with open(log_path, \"a\", encoding=\"utf-8\") as f:\n        f.write(json.dumps(entry, ensure_ascii=False) + \"\\n\")"
+  },
+  {
+    "id": "func_099",
+    "language": "python",
+    "function_name": "format_currency_rub",
+    "category": "utils",
+    "description": "Форматирует число как сумму в рублях: «1 234,56 ₽» с разделителем тысяч.",
+    "code": "def format_currency_rub(amount: float) -> str:\n    \"\"\"Форматирует число как сумму в рублях: «1 234,56 ₽» с разделителем тысяч.\"\"\"\n    formatted = f\"{amount:,.2f}\".replace(\",\", \" \").replace(\".\", \",\")\n    return f\"{formatted} ₽\""
+  },
+  {
+    "id": "func_100",
+    "language": "python",
+    "function_name": "parse_human_duration",
+    "category": "utils",
+    "description": "Преобразует строку вида «2h30m15s» в количество секунд.",
+    "code": "def parse_human_duration(duration: str) -> int:\n    \"\"\"Преобразует строку вида «2h30m15s» в количество секунд.\"\"\"\n    pattern = r\"(?:(\\d+)h)?(?:(\\d+)m)?(?:(\\d+)s)?\"\n    m = re.fullmatch(pattern, duration.strip())\n    if not m or not any(m.groups()):\n        raise ValueError(f\"Invalid duration: {duration!r}\")\n    h = int(m.group(1) or 0)\n    minutes = int(m.group(2) or 0)\n    s = int(m.group(3) or 0)\n    return h * 3600 + minutes * 60 + s"
+  },
+  {
+    "id": "func_101",
+    "language": "java",
+    "function_name": "verifyJwtToken",
+    "code": "/** Проверяет JWT-токен и возвращает claims или выбрасывает исключение. */\npublic Claims verifyJwtToken(String token, String secret) {\n    try {\n        return Jwts.parserBuilder()\n            .setSigningKey(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)))\n            .build()\n            .parseClaimsJws(token)\n            .getBody();\n    } catch (ExpiredJwtException e) {\n        throw new TokenExpiredException(\"Token has expired\");\n    } catch (JwtException e) {\n        throw new InvalidTokenException(\"Token is invalid\");\n    }\n}",
+    "description": "Проверяет JWT-токен и возвращает claims или выбрасывает исключение.",
+    "category": "auth"
+  },
+  {
+    "id": "func_102",
+    "language": "java",
+    "function_name": "hashPassword",
+    "code": "/** Хэширует пароль с использованием BCrypt и возвращает хэш. */\npublic String hashPassword(String plainPassword) {\n    if (plainPassword == null || plainPassword.isEmpty()) {\n        throw new IllegalArgumentException(\"Password must not be empty\");\n    }\n    return BCrypt.hashpw(plainPassword, BCrypt.gensalt(12));\n}",
+    "description": "Хэширует пароль с использованием BCrypt и возвращает хэш.",
+    "category": "auth"
+  },
+  {
+    "id": "func_103",
+    "language": "java",
+    "function_name": "checkPassword",
+    "code": "/** Проверяет соответствие пароля его BCrypt-хэшу. */\npublic boolean checkPassword(String plainPassword, String hashedPassword) {\n    if (plainPassword == null || hashedPassword == null) {\n        return false;\n    }\n    try {\n        return BCrypt.checkpw(plainPassword, hashedPassword);\n    } catch (IllegalArgumentException e) {\n        logger.warn(\"Invalid hash format: {}\", e.getMessage());\n        return false;\n    }\n}",
+    "description": "Проверяет соответствие пароля его BCrypt-хэшу.",
+    "category": "auth"
+  },
+  {
+    "id": "func_104",
+    "language": "java",
+    "function_name": "generateSessionId",
+    "code": "/** Генерирует криптографически стойкий идентификатор сессии. */\npublic String generateSessionId() {\n    byte[] bytes = new byte[32];\n    new SecureRandom().nextBytes(bytes);\n    return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);\n}",
+    "description": "Генерирует криптографически стойкий идентификатор сессии.",
+    "category": "auth"
+  },
+  {
+    "id": "func_105",
+    "language": "java",
+    "function_name": "validateCredentials",
+    "code": "/** Проверяет учётные данные пользователя и возвращает результат аутентификации. */\npublic AuthResult validateCredentials(String username, String password) {\n    if (username == null || username.isBlank() || password == null || password.isBlank()) {\n        return AuthResult.failure(\"Username and password are required\");\n    }\n    User user = userRepository.findByUsername(username.trim())\n        .orElse(null);\n    if (user == null || !BCrypt.checkpw(password, user.getPasswordHash())) {\n        return AuthResult.failure(\"Invalid credentials\");\n    }\n    if (user.isBlocked()) {\n        return AuthResult.failure(\"Account is blocked\");\n    }\n    return AuthResult.success(user);\n}",
+    "description": "Проверяет учётные данные пользователя и возвращает результат аутентификации.",
+    "category": "auth"
+  },
+  {
+    "id": "func_106",
+    "language": "java",
+    "function_name": "issueJwtToken",
+    "code": "/** Выпускает JWT-токен для пользователя с заданным временем жизни. */\npublic String issueJwtToken(User user, String secret, long ttlSeconds) {\n    Date now = new Date();\n    Date expiry = new Date(now.getTime() + ttlSeconds * 1000);\n    return Jwts.builder()\n        .setSubject(user.getId().toString())\n        .claim(\"role\", user.getRole())\n        .claim(\"email\", user.getEmail())\n        .setIssuedAt(now)\n        .setExpiration(expiry)\n        .signWith(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)))\n        .compact();\n}",
+    "description": "Выпускает JWT-токен для пользователя с заданным временем жизни.",
+    "category": "auth"
+  },
+  {
+    "id": "func_107",
+    "language": "java",
+    "function_name": "refreshJwtToken",
+    "code": "/** Обновляет JWT-токен, если он ещё не истёк или истёк менее суток назад. */\npublic String refreshJwtToken(String oldToken, String secret, long ttlSeconds) {\n    Claims claims;\n    try {\n        claims = verifyJwtToken(oldToken, secret);\n    } catch (TokenExpiredException e) {\n        claims = Jwts.parserBuilder()\n            .setSigningKey(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)))\n            .build()\n            .parseClaimsJws(oldToken)\n            .getBody();\n        long expiredAgo = (System.currentTimeMillis() - claims.getExpiration().getTime()) / 1000;\n        if (expiredAgo > 86400) throw new TokenExpiredException(\"Token too old to refresh\");\n    }\n    User user = userRepository.findById(UUID.fromString(claims.getSubject())).orElseThrow();\n    return issueJwtToken(user, secret, ttlSeconds);\n}",
+    "description": "Обновляет JWT-токен, если он ещё не истёк или истёк менее суток назад.",
+    "category": "auth"
+  },
+  {
+    "id": "func_108",
+    "language": "java",
+    "function_name": "hasPermission",
+    "code": "/** Проверяет наличие заданного разрешения у пользователя. */\npublic boolean hasPermission(User user, String permission) {\n    if (user == null || permission == null) return false;\n    if (\"admin\".equals(user.getRole())) return true;\n    Set<String> perms = permissionRepository.findByRole(user.getRole());\n    return perms.contains(permission);\n}",
+    "description": "Проверяет наличие заданного разрешения у пользователя.",
+    "category": "auth"
+  },
+  {
+    "id": "func_109",
+    "language": "java",
+    "function_name": "requireAdmin",
+    "code": "/** Проверяет, что текущий пользователь имеет роль администратора. */\npublic void requireAdmin(HttpServletRequest request) {\n    String role = (String) request.getAttribute(\"userRole\");\n    if (!\"admin\".equals(role)) {\n        throw new AccessDeniedException(\"Admin role required\");\n    }\n}",
+    "description": "Проверяет, что текущий пользователь имеет роль администратора.",
+    "category": "auth"
+  },
+  {
+    "id": "func_110",
+    "language": "java",
+    "function_name": "logoutUser",
+    "code": "/** Завершает сессию пользователя, инвалидируя токен в хранилище. */\npublic void logoutUser(String sessionId) {\n    if (sessionId == null || sessionId.isBlank()) {\n        throw new IllegalArgumentException(\"Session ID must not be blank\");\n    }\n    boolean removed = sessionStore.invalidate(sessionId);\n    if (!removed) {\n        logger.warn(\"Session not found during logout: {}\", sessionId);\n    }\n    auditLog.record(\"LOGOUT\", sessionId);\n}",
+    "description": "Завершает сессию пользователя, инвалидируя токен в хранилище.",
+    "category": "auth"
+  },
+  {
+    "id": "func_111",
+    "language": "java",
+    "function_name": "loginWithOauth",
+    "code": "/** Выполняет аутентификацию через OAuth-провайдера и возвращает пользователя. */\npublic User loginWithOauth(String provider, String accessToken) {\n    OAuthProfile profile = oauthClient.fetchProfile(provider, accessToken);\n    if (profile == null || profile.getEmail() == null) {\n        throw new AuthException(\"Failed to fetch OAuth profile from \" + provider);\n    }\n    return userRepository.findByEmail(profile.getEmail())\n        .orElseGet(() -> {\n            User newUser = User.fromOauthProfile(profile, provider);\n            return userRepository.save(newUser);\n        });\n}",
+    "description": "Выполняет аутентификацию через OAuth-провайдера и возвращает пользователя.",
+    "category": "auth"
+  },
+  {
+    "id": "func_112",
+    "language": "java",
+    "function_name": "revokeToken",
+    "code": "/** Отзывает JWT-токен, добавляя его в чёрный список до истечения срока. */\npublic void revokeToken(String token, String secret) {\n    Claims claims = verifyJwtToken(token, secret);\n    long ttl = (claims.getExpiration().getTime() - System.currentTimeMillis()) / 1000;\n    if (ttl > 0) {\n        tokenBlacklist.add(token, ttl);\n        logger.info(\"Token revoked, TTL={}s, sub={}\", ttl, claims.getSubject());\n    }\n}",
+    "description": "Отзывает JWT-токен, добавляя его в чёрный список до истечения срока.",
+    "category": "auth"
+  },
+  {
+    "id": "func_113",
+    "language": "java",
+    "function_name": "parseAuthHeader",
+    "code": "/** Извлекает Bearer-токен из заголовка Authorization HTTP-запроса. */\npublic String parseAuthHeader(String authorizationHeader) {\n    if (authorizationHeader == null || !authorizationHeader.startsWith(\"Bearer \")) {\n        throw new InvalidTokenException(\"Missing or invalid Authorization header\");\n    }\n    String token = authorizationHeader.substring(7).trim();\n    if (token.isEmpty()) {\n        throw new InvalidTokenException(\"Token must not be empty\");\n    }\n    return token;\n}",
+    "description": "Извлекает Bearer-токен из заголовка Authorization HTTP-запроса.",
+    "category": "auth"
+  },
+  {
+    "id": "func_114",
+    "language": "java",
+    "function_name": "validateTwoFactorCode",
+    "code": "/** Проверяет одноразовый TOTP-код для двухфакторной аутентификации. */\npublic boolean validateTwoFactorCode(String secret, String code) {\n    if (secret == null || code == null || !code.matches(\"\\\\d{6}\")) return false;\n    TimeBasedOneTimePasswordGenerator totp = new TimeBasedOneTimePasswordGenerator();\n    Instant now = Instant.now();\n    for (int delta = -1; delta <= 1; delta++) {\n        Instant window = now.plus(delta * 30L, ChronoUnit.SECONDS);\n        String expected = totp.generateOneTimePasswordString(Base32.decode(secret), window);\n        if (expected.equals(code)) return true;\n    }\n    return false;\n}",
+    "description": "Проверяет одноразовый TOTP-код для двухфакторной аутентификации.",
+    "category": "auth"
+  },
+  {
+    "id": "func_115",
+    "language": "java",
+    "function_name": "generateTwoFactorSecret",
+    "code": "/** Генерирует случайный Base32-секрет для двухфакторной аутентификации. */\npublic String generateTwoFactorSecret() {\n    byte[] bytes = new byte[20];\n    new SecureRandom().nextBytes(bytes);\n    return Base32.encode(bytes).replaceAll(\"=\", \"\");\n}",
+    "description": "Генерирует случайный Base32-секрет для двухфакторной аутентификации.",
+    "category": "auth"
+  },
+  {
+    "id": "func_116",
+    "language": "java",
+    "function_name": "sendPasswordResetEmail",
+    "code": "/** Отправляет письмо со ссылкой для сброса пароля на указанный адрес. */\npublic void sendPasswordResetEmail(String email, String resetToken, String baseUrl) {\n    User user = userRepository.findByEmail(email)\n        .orElseThrow(() -> new UserNotFoundException(\"User not found: \" + email));\n    String link = baseUrl + \"/reset-password?token=\" + resetToken;\n    String body = \"Для сброса пароля перейдите по ссылке: \" + link;\n    emailService.send(user.getEmail(), \"Сброс пароля\", body);\n    logger.info(\"Password reset email sent to {}\", email);\n}",
+    "description": "Отправляет письмо со ссылкой для сброса пароля на указанный адрес.",
+    "category": "auth"
+  },
+  {
+    "id": "func_117",
+    "language": "java",
+    "function_name": "resetPassword",
+    "code": "/** Сбрасывает пароль пользователя по токену и устанавливает новый. */\npublic void resetPassword(String resetToken, String newPassword) {\n    PasswordResetToken tokenRecord = resetTokenRepository.findByToken(resetToken)\n        .orElseThrow(() -> new InvalidTokenException(\"Reset token not found\"));\n    if (tokenRecord.getExpiresAt().isBefore(Instant.now())) {\n        throw new TokenExpiredException(\"Reset token has expired\");\n    }\n    User user = tokenRecord.getUser();\n    user.setPasswordHash(BCrypt.hashpw(newPassword, BCrypt.gensalt(12)));\n    userRepository.save(user);\n    resetTokenRepository.delete(tokenRecord);\n    logger.info(\"Password reset for user {}\", user.getId());\n}",
+    "description": "Сбрасывает пароль пользователя по токену и устанавливает новый.",
+    "category": "auth"
+  },
+  {
+    "id": "func_118",
+    "language": "java",
+    "function_name": "blockUser",
+    "code": "/** Блокирует пользователя и инвалидирует все его активные сессии. */\npublic void blockUser(UUID userId, String reason) {\n    User user = userRepository.findById(userId)\n        .orElseThrow(() -> new UserNotFoundException(\"User not found: \" + userId));\n    user.setBlocked(true);\n    user.setBlockReason(reason);\n    userRepository.save(user);\n    sessionStore.invalidateAll(userId.toString());\n    auditLog.record(\"BLOCK_USER\", userId.toString(), reason);\n}",
+    "description": "Блокирует пользователя и инвалидирует все его активные сессии.",
+    "category": "auth"
+  },
+  {
+    "id": "func_119",
+    "language": "java",
+    "function_name": "unlockUser",
+    "code": "/** Снимает блокировку с пользователя и очищает причину блокировки. */\npublic void unlockUser(UUID userId) {\n    User user = userRepository.findById(userId)\n        .orElseThrow(() -> new UserNotFoundException(\"User not found: \" + userId));\n    if (!user.isBlocked()) {\n        throw new IllegalStateException(\"User is not blocked: \" + userId);\n    }\n    user.setBlocked(false);\n    user.setBlockReason(null);\n    userRepository.save(user);\n    auditLog.record(\"UNLOCK_USER\", userId.toString());\n}",
+    "description": "Снимает блокировку с пользователя и очищает причину блокировки.",
+    "category": "auth"
+  },
+  {
+    "id": "func_120",
+    "language": "java",
+    "function_name": "getCurrentUser",
+    "code": "/** Возвращает текущего аутентифицированного пользователя из контекста запроса. */\npublic User getCurrentUser(HttpServletRequest request) {\n    String token = parseAuthHeader(request.getHeader(\"Authorization\"));\n    Claims claims = verifyJwtToken(token, jwtSecret);\n    UUID userId = UUID.fromString(claims.getSubject());\n    return userRepository.findById(userId)\n        .orElseThrow(() -> new UserNotFoundException(\"User not found: \" + userId));\n}",
+    "description": "Возвращает текущего аутентифицированного пользователя из контекста запроса.",
+    "category": "auth"
+  },
+  {
+    "id": "func_121",
+    "language": "java",
+    "function_name": "getUserById",
+    "code": "/** Возвращает пользователя по идентификатору или выбрасывает исключение. */\npublic User getUserById(UUID id) {\n    return userRepository.findById(id)\n        .orElseThrow(() -> new UserNotFoundException(\"User not found: \" + id));\n}",
+    "description": "Возвращает пользователя по идентификатору или выбрасывает исключение.",
+    "category": "database"
+  },
+  {
+    "id": "func_122",
+    "language": "java",
+    "function_name": "getUserByEmail",
+    "code": "/** Возвращает пользователя по адресу электронной почты. */\npublic Optional<User> getUserByEmail(String email) {\n    if (email == null || !email.contains(\"@\")) {\n        throw new IllegalArgumentException(\"Invalid email: \" + email);\n    }\n    return userRepository.findByEmail(email.toLowerCase().trim());\n}",
+    "description": "Возвращает пользователя по адресу электронной почты.",
+    "category": "database"
+  },
+  {
+    "id": "func_123",
+    "language": "java",
+    "function_name": "createUser",
+    "code": "/** Создаёт нового пользователя в базе данных и возвращает сохранённую сущность. */\npublic User createUser(String username, String email, String plainPassword) {\n    if (userRepository.existsByEmail(email)) {\n        throw new DuplicateEmailException(\"Email already in use: \" + email);\n    }\n    User user = new User();\n    user.setUsername(username.trim());\n    user.setEmail(email.toLowerCase().trim());\n    user.setPasswordHash(BCrypt.hashpw(plainPassword, BCrypt.gensalt(12)));\n    user.setCreatedAt(Instant.now());\n    return userRepository.save(user);\n}",
+    "description": "Создаёт нового пользователя в базе данных и возвращает сохранённую сущность.",
+    "category": "database"
+  },
+  {
+    "id": "func_124",
+    "language": "java",
+    "function_name": "updateUser",
+    "code": "/** Обновляет данные пользователя и возвращает обновлённую сущность. */\npublic User updateUser(UUID id, Map<String, Object> fields) {\n    User user = getUserById(id);\n    if (fields.containsKey(\"username\")) user.setUsername((String) fields.get(\"username\"));\n    if (fields.containsKey(\"email\")) user.setEmail(((String) fields.get(\"email\")).toLowerCase());\n    if (fields.containsKey(\"firstName\")) user.setFirstName((String) fields.get(\"firstName\"));\n    if (fields.containsKey(\"lastName\")) user.setLastName((String) fields.get(\"lastName\"));\n    user.setUpdatedAt(Instant.now());\n    return userRepository.save(user);\n}",
+    "description": "Обновляет данные пользователя и возвращает обновлённую сущность.",
+    "category": "database"
+  },
+  {
+    "id": "func_125",
+    "language": "java",
+    "function_name": "deleteUser",
+    "code": "/** Удаляет пользователя из базы данных по идентификатору. */\npublic void deleteUser(UUID id) {\n    if (!userRepository.existsById(id)) {\n        throw new UserNotFoundException(\"User not found: \" + id);\n    }\n    sessionStore.invalidateAll(id.toString());\n    userRepository.deleteById(id);\n    auditLog.record(\"DELETE_USER\", id.toString());\n}",
+    "description": "Удаляет пользователя из базы данных по идентификатору.",
+    "category": "database"
+  },
+  {
+    "id": "func_126",
+    "language": "java",
+    "function_name": "listUsersPaginated",
+    "code": "/** Возвращает страницу пользователей с заданным смещением и размером страницы. */\npublic Page<User> listUsersPaginated(int page, int size, String sortField, boolean asc) {\n    if (page < 0) throw new IllegalArgumentException(\"Page must be >= 0\");\n    if (size < 1 || size > 200) throw new IllegalArgumentException(\"Size must be 1–200\");\n    Sort sort = asc ? Sort.by(sortField).ascending() : Sort.by(sortField).descending();\n    Pageable pageable = PageRequest.of(page, size, sort);\n    return userRepository.findAll(pageable);\n}",
+    "description": "Возвращает страницу пользователей с заданным смещением и размером страницы.",
+    "category": "database"
+  },
+  {
+    "id": "func_127",
+    "language": "java",
+    "function_name": "countUsers",
+    "code": "/** Возвращает общее количество пользователей в базе данных. */\npublic long countUsers() {\n    return userRepository.count();\n}",
+    "description": "Возвращает общее количество пользователей в базе данных.",
+    "category": "database"
+  },
+  {
+    "id": "func_128",
+    "language": "java",
+    "function_name": "findOrdersByUser",
+    "code": "/** Возвращает список заказов пользователя, отсортированных по дате создания. */\npublic List<Order> findOrdersByUser(UUID userId) {\n    User user = getUserById(userId);\n    return orderRepository.findByUserOrderByCreatedAtDesc(user);\n}",
+    "description": "Возвращает список заказов пользователя, отсортированных по дате создания.",
+    "category": "database"
+  },
+  {
+    "id": "func_129",
+    "language": "java",
+    "function_name": "softDeletePost",
+    "code": "/** Помечает запись как удалённую, не удаляя её физически из базы. */\npublic void softDeletePost(UUID postId, UUID requesterId) {\n    Post post = postRepository.findById(postId)\n        .orElseThrow(() -> new NotFoundException(\"Post not found: \" + postId));\n    if (!post.getAuthorId().equals(requesterId)) {\n        throw new AccessDeniedException(\"Not the author of post: \" + postId);\n    }\n    post.setDeletedAt(Instant.now());\n    postRepository.save(post);\n}",
+    "description": "Помечает запись как удалённую, не удаляя её физически из базы.",
+    "category": "database"
+  },
+  {
+    "id": "func_130",
+    "language": "java",
+    "function_name": "getDbConnection",
+    "code": "/** Возвращает соединение с базой данных из пула подключений. */\npublic Connection getDbConnection(DataSource dataSource) throws SQLException {\n    Connection conn = dataSource.getConnection();\n    conn.setAutoCommit(false);\n    conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);\n    return conn;\n}",
+    "description": "Возвращает соединение с базой данных из пула подключений.",
+    "category": "database"
+  },
+  {
+    "id": "func_131",
+    "language": "java",
+    "function_name": "executeMigration",
+    "code": "/** Применяет SQL-миграцию из файла к базе данных через JDBC-соединение. */\npublic void executeMigration(Connection conn, Path sqlFile) throws IOException, SQLException {\n    String sql = Files.readString(sqlFile, StandardCharsets.UTF_8);\n    for (String statement : sql.split(\";\")) {\n        String trimmed = statement.trim();\n        if (!trimmed.isEmpty()) {\n            try (Statement stmt = conn.createStatement()) {\n                stmt.execute(trimmed);\n            }\n        }\n    }\n    conn.commit();\n    logger.info(\"Migration applied: {}\", sqlFile.getFileName());\n}",
+    "description": "Применяет SQL-миграцию из файла к базе данных через JDBC-соединение.",
+    "category": "database"
+  },
+  {
+    "id": "func_132",
+    "language": "java",
+    "function_name": "backupDatabase",
+    "code": "/** Создаёт резервную копию базы данных в указанный каталог. */\npublic Path backupDatabase(String dbName, Path backupDir) throws IOException, InterruptedException {\n    Files.createDirectories(backupDir);\n    String timestamp = DateTimeFormatter.ofPattern(\"yyyyMMdd_HHmmss\").format(LocalDateTime.now());\n    Path outFile = backupDir.resolve(dbName + \"_\" + timestamp + \".sql.gz\");\n    ProcessBuilder pb = new ProcessBuilder(\"pg_dump\", \"--dbname=\" + dbName, \"--format=custom\", \"--file=\" + outFile);\n    pb.inheritIO();\n    int exit = pb.start().waitFor();\n    if (exit != 0) throw new IOException(\"pg_dump failed with code \" + exit);\n    logger.info(\"Backup created: {}\", outFile);\n    return outFile;\n}",
+    "description": "Создаёт резервную копию базы данных в указанный каталог.",
+    "category": "database"
+  },
+  {
+    "id": "func_133",
+    "language": "java",
+    "function_name": "restoreFromBackup",
+    "code": "/** Восстанавливает базу данных из резервной копии. */\npublic void restoreFromBackup(String dbName, Path backupFile) throws IOException, InterruptedException {\n    if (!Files.exists(backupFile)) {\n        throw new FileNotFoundException(\"Backup file not found: \" + backupFile);\n    }\n    ProcessBuilder pb = new ProcessBuilder(\"pg_restore\", \"--dbname=\" + dbName,\n        \"--clean\", \"--if-exists\", backupFile.toString());\n    pb.inheritIO();\n    int exit = pb.start().waitFor();\n    if (exit != 0) throw new IOException(\"pg_restore failed with code \" + exit);\n    logger.info(\"Database restored from {}\", backupFile);\n}",
+    "description": "Восстанавливает базу данных из резервной копии.",
+    "category": "database"
+  },
+  {
+    "id": "func_134",
+    "language": "java",
+    "function_name": "beginTransaction",
+    "code": "/** Начинает транзакцию на заданном JDBC-соединении. */\npublic void beginTransaction(Connection connection) throws SQLException {\n    if (connection == null || connection.isClosed()) {\n        throw new IllegalStateException(\"Connection is null or closed\");\n    }\n    connection.setAutoCommit(false);\n    logger.debug(\"Transaction started\");\n}",
+    "description": "Начинает транзакцию на заданном JDBC-соединении.",
+    "category": "database"
+  },
+  {
+    "id": "func_135",
+    "language": "java",
+    "function_name": "commitTransaction",
+    "code": "/** Фиксирует транзакцию и переключает соединение в режим автокоммита. */\npublic void commitTransaction(Connection connection) throws SQLException {\n    if (connection == null || connection.isClosed()) {\n        throw new IllegalStateException(\"Connection is null or closed\");\n    }\n    connection.commit();\n    connection.setAutoCommit(true);\n    logger.debug(\"Transaction committed\");\n}",
+    "description": "Фиксирует транзакцию и переключает соединение в режим автокоммита.",
+    "category": "database"
+  },
+  {
+    "id": "func_136",
+    "language": "java",
+    "function_name": "rollbackTransaction",
+    "code": "/** Откатывает транзакцию и логирует причину отката. */\npublic void rollbackTransaction(Connection connection, String reason) {\n    try {\n        if (connection != null && !connection.isClosed()) {\n            connection.rollback();\n            logger.warn(\"Transaction rolled back: {}\", reason);\n        }\n    } catch (SQLException e) {\n        logger.error(\"Failed to rollback transaction\", e);\n    }\n}",
+    "description": "Откатывает транзакцию и логирует причину отката.",
+    "category": "database"
+  },
+  {
+    "id": "func_137",
+    "language": "java",
+    "function_name": "createIndex",
+    "code": "/** Создаёт индекс в таблице базы данных, если он ещё не существует. */\npublic void createIndex(Connection conn, String indexName, String table, String... columns) throws SQLException {\n    String cols = String.join(\", \", columns);\n    String sql = \"CREATE INDEX IF NOT EXISTS \" + indexName + \" ON \" + table + \" (\" + cols + \")\";\n    try (Statement stmt = conn.createStatement()) {\n        stmt.execute(sql);\n    }\n    logger.info(\"Index {} created on {}\", indexName, table);\n}",
+    "description": "Создаёт индекс в таблице базы данных, если он ещё не существует.",
+    "category": "database"
+  },
+  {
+    "id": "func_138",
+    "language": "java",
+    "function_name": "dropTable",
+    "code": "/** Удаляет таблицу из базы данных, если она существует. */\npublic void dropTable(Connection conn, String tableName) throws SQLException {\n    String sql = \"DROP TABLE IF EXISTS \" + tableName + \" CASCADE\";\n    try (Statement stmt = conn.createStatement()) {\n        stmt.execute(sql);\n    }\n    logger.info(\"Table dropped: {}\", tableName);\n}",
+    "description": "Удаляет таблицу из базы данных, если она существует.",
+    "category": "database"
+  },
+  {
+    "id": "func_139",
+    "language": "java",
+    "function_name": "findInactiveUsers",
+    "code": "/** Возвращает пользователей, не входивших в систему дольше заданного числа дней. */\npublic List<User> findInactiveUsers(int inactiveDays) {\n    if (inactiveDays < 1) throw new IllegalArgumentException(\"inactiveDays must be >= 1\");\n    Instant threshold = Instant.now().minus(inactiveDays, ChronoUnit.DAYS);\n    return userRepository.findByLastLoginAtBefore(threshold);\n}",
+    "description": "Возвращает пользователей, не входивших в систему дольше заданного числа дней.",
+    "category": "database"
+  },
+  {
+    "id": "func_140",
+    "language": "java",
+    "function_name": "bulkInsertRecords",
+    "code": "/** Вставляет список записей пакетом через JDBC batch. */\npublic int[] bulkInsertRecords(Connection conn, String table, List<Map<String, Object>> records) throws SQLException {\n    if (records.isEmpty()) return new int[0];\n    String cols = String.join(\", \", records.get(0).keySet());\n    String placeholders = records.get(0).keySet().stream().map(k -> \"?\").collect(Collectors.joining(\", \"));\n    String sql = \"INSERT INTO \" + table + \" (\" + cols + \") VALUES (\" + placeholders + \")\";\n    try (PreparedStatement ps = conn.prepareStatement(sql)) {\n        for (Map<String, Object> row : records) {\n            int idx = 1;\n            for (Object val : row.values()) ps.setObject(idx++, val);\n            ps.addBatch();\n        }\n        return ps.executeBatch();\n    }\n}",
+    "description": "Вставляет список записей пакетом через JDBC batch.",
+    "category": "database"
+  },
+  {
+    "id": "func_141",
+    "language": "java",
+    "function_name": "fetchJson",
+    "code": "/** Выполняет GET-запрос и возвращает тело ответа как строку JSON. */\npublic String fetchJson(String url) throws IOException, InterruptedException {\n    HttpRequest request = HttpRequest.newBuilder()\n        .uri(URI.create(url))\n        .header(\"Accept\", \"application/json\")\n        .GET()\n        .build();\n    HttpResponse<String> response = HttpClient.newHttpClient()\n        .send(request, HttpResponse.BodyHandlers.ofString());\n    if (response.statusCode() != 200) {\n        throw new IOException(\"HTTP \" + response.statusCode() + \" for \" + url);\n    }\n    return response.body();\n}",
+    "description": "Выполняет GET-запрос и возвращает тело ответа как строку JSON.",
+    "category": "http"
+  },
+  {
+    "id": "func_142",
+    "language": "java",
+    "function_name": "postJson",
+    "code": "/** Отправляет POST-запрос с JSON-телом и возвращает тело ответа. */\npublic String postJson(String url, String jsonBody) throws IOException, InterruptedException {\n    HttpRequest request = HttpRequest.newBuilder()\n        .uri(URI.create(url))\n        .header(\"Content-Type\", \"application/json\")\n        .header(\"Accept\", \"application/json\")\n        .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))\n        .build();\n    HttpResponse<String> response = HttpClient.newHttpClient()\n        .send(request, HttpResponse.BodyHandlers.ofString());\n    if (response.statusCode() / 100 != 2) {\n        throw new IOException(\"HTTP \" + response.statusCode() + \": \" + response.body());\n    }\n    return response.body();\n}",
+    "description": "Отправляет POST-запрос с JSON-телом и возвращает тело ответа.",
+    "category": "http"
+  },
+  {
+    "id": "func_143",
+    "language": "java",
+    "function_name": "downloadFile",
+    "code": "/** Скачивает файл по URL и сохраняет его по указанному пути. */\npublic long downloadFile(String url, Path destination) throws IOException, InterruptedException {\n    HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).GET().build();\n    HttpResponse<Path> response = HttpClient.newHttpClient()\n        .send(request, HttpResponse.BodyHandlers.ofFile(destination));\n    if (response.statusCode() != 200) {\n        Files.deleteIfExists(destination);\n        throw new IOException(\"Download failed, HTTP \" + response.statusCode());\n    }\n    return Files.size(destination);\n}",
+    "description": "Скачивает файл по URL и сохраняет его по указанному пути.",
+    "category": "http"
+  },
+  {
+    "id": "func_144",
+    "language": "java",
+    "function_name": "retryRequest",
+    "code": "/** Повторяет HTTP-запрос до maxAttempts раз при получении ошибки. */\npublic String retryRequest(Callable<String> requestFn, int maxAttempts, long delayMs) {\n    Exception lastEx = null;\n    for (int attempt = 1; attempt <= maxAttempts; attempt++) {\n        try {\n            return requestFn.call();\n        } catch (Exception e) {\n            lastEx = e;\n            logger.warn(\"Request failed (attempt {}/{}): {}\", attempt, maxAttempts, e.getMessage());\n            if (attempt < maxAttempts) {\n                try { Thread.sleep(delayMs * attempt); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }\n            }\n        }\n    }\n    throw new RuntimeException(\"All \" + maxAttempts + \" attempts failed\", lastEx);\n}",
+    "description": "Повторяет HTTP-запрос до maxAttempts раз при получении ошибки.",
+    "category": "http"
+  },
+  {
+    "id": "func_145",
+    "language": "java",
+    "function_name": "parsePaginationLinks",
+    "code": "/** Разбирает заголовок Link HTTP-ответа и возвращает карту отношений к URL. */\npublic Map<String, String> parsePaginationLinks(String linkHeader) {\n    Map<String, String> links = new LinkedHashMap<>();\n    if (linkHeader == null || linkHeader.isBlank()) return links;\n    for (String part : linkHeader.split(\",\\\\s*\")) {\n        String[] segments = part.split(\";\");\n        if (segments.length == 2) {\n            String url = segments[0].trim().replaceAll(\"[<>]\", \"\");\n            String rel = segments[1].trim().replaceAll(\"rel=\\\"(\\\\w+)\\\"\", \"$1\");\n            links.put(rel, url);\n        }\n    }\n    return links;\n}",
+    "description": "Разбирает заголовок Link HTTP-ответа и возвращает карту отношений к URL.",
+    "category": "http"
+  },
+  {
+    "id": "func_146",
+    "language": "java",
+    "function_name": "sendWebhook",
+    "code": "/** Отправляет POST-запрос на вебхук с JSON-данными и проверяет статус ответа. */\npublic boolean sendWebhook(String webhookUrl, String payload, String secret) throws IOException, InterruptedException {\n    String signature = HmacUtils.hmacSha256Hex(secret, payload);\n    HttpRequest request = HttpRequest.newBuilder()\n        .uri(URI.create(webhookUrl))\n        .header(\"Content-Type\", \"application/json\")\n        .header(\"X-Webhook-Signature\", \"sha256=\" + signature)\n        .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))\n        .build();\n    HttpResponse<Void> response = HttpClient.newHttpClient()\n        .send(request, HttpResponse.BodyHandlers.discarding());\n    return response.statusCode() / 100 == 2;\n}",
+    "description": "Отправляет POST-запрос на вебхук с JSON-данными и проверяет статус ответа.",
+    "category": "http"
+  },
+  {
+    "id": "func_147",
+    "language": "java",
+    "function_name": "handleRateLimit",
+    "code": "/** Обрабатывает ответ 429 Too Many Requests и ожидает перед повторным запросом. */\npublic void handleRateLimit(HttpResponse<?> response) throws InterruptedException {\n    if (response.statusCode() != 429) return;\n    String retryAfter = response.headers().firstValue(\"Retry-After\").orElse(\"5\");\n    long waitSeconds;\n    try {\n        waitSeconds = Long.parseLong(retryAfter);\n    } catch (NumberFormatException e) {\n        waitSeconds = 5;\n    }\n    logger.warn(\"Rate limited, waiting {}s\", waitSeconds);\n    Thread.sleep(waitSeconds * 1000);\n}",
+    "description": "Обрабатывает ответ 429 Too Many Requests и ожидает перед повторным запросом.",
+    "category": "http"
+  },
+  {
+    "id": "func_148",
+    "language": "java",
+    "function_name": "fetchWithTimeout",
+    "code": "/** Выполняет GET-запрос с заданным таймаутом и возвращает тело ответа. */\npublic String fetchWithTimeout(String url, long timeoutSeconds) throws IOException, InterruptedException {\n    HttpClient client = HttpClient.newBuilder()\n        .connectTimeout(Duration.ofSeconds(timeoutSeconds))\n        .build();\n    HttpRequest request = HttpRequest.newBuilder()\n        .uri(URI.create(url))\n        .timeout(Duration.ofSeconds(timeoutSeconds))\n        .GET()\n        .build();\n    HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());\n    if (response.statusCode() != 200) throw new IOException(\"HTTP \" + response.statusCode());\n    return response.body();\n}",
+    "description": "Выполняет GET-запрос с заданным таймаутом и возвращает тело ответа.",
+    "category": "http"
+  },
+  {
+    "id": "func_149",
+    "language": "java",
+    "function_name": "proxyRequest",
+    "code": "/** Проксирует входящий HTTP-запрос на целевой URL и возвращает ответ. */\npublic HttpResponse<String> proxyRequest(HttpServletRequest incoming, String targetBaseUrl) throws IOException, InterruptedException {\n    String targetUrl = targetBaseUrl + incoming.getRequestURI();\n    String method = incoming.getMethod();\n    String body = incoming.getReader().lines().collect(Collectors.joining(\"\\n\"));\n    HttpRequest.Builder builder = HttpRequest.newBuilder().uri(URI.create(targetUrl));\n    Collections.list(incoming.getHeaderNames()).forEach(h -> builder.header(h, incoming.getHeader(h)));\n    builder.method(method, body.isEmpty()\n        ? HttpRequest.BodyPublishers.noBody()\n        : HttpRequest.BodyPublishers.ofString(body));\n    return HttpClient.newHttpClient().send(builder.build(), HttpResponse.BodyHandlers.ofString());\n}",
+    "description": "Проксирует входящий HTTP-запрос на целевой URL и возвращает ответ.",
+    "category": "http"
+  },
+  {
+    "id": "func_150",
+    "language": "java",
+    "function_name": "measureLatency",
+    "code": "/** Измеряет задержку HTTP-запроса в миллисекундах и возвращает результат. */\npublic long measureLatency(String url) throws IOException, InterruptedException {\n    long start = System.currentTimeMillis();\n    HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).GET().build();\n    HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.discarding());\n    long latency = System.currentTimeMillis() - start;\n    logger.debug(\"Latency for {}: {}ms\", url, latency);\n    return latency;\n}",
+    "description": "Измеряет задержку HTTP-запроса в миллисекундах и возвращает результат.",
+    "category": "http"
+  },
+  {
+    "id": "func_151",
+    "language": "java",
+    "function_name": "parseJsonApiResponse",
+    "code": "/** Разбирает JSON:API ответ и возвращает список объектов из поля data. */\npublic List<Map<String, Object>> parseJsonApiResponse(String responseBody) {\n    ObjectMapper mapper = new ObjectMapper();\n    JsonNode root;\n    try {\n        root = mapper.readTree(responseBody);\n    } catch (JsonProcessingException e) {\n        throw new IllegalArgumentException(\"Invalid JSON: \" + e.getMessage());\n    }\n    JsonNode data = root.get(\"data\");\n    if (data == null || !data.isArray()) return Collections.emptyList();\n    List<Map<String, Object>> result = new ArrayList<>();\n    data.forEach(node -> result.add(mapper.convertValue(node, new TypeReference<>() {})));\n    return result;\n}",
+    "description": "Разбирает JSON:API ответ и возвращает список объектов из поля data.",
+    "category": "http"
+  },
+  {
+    "id": "func_152",
+    "language": "java",
+    "function_name": "uploadFileMultipart",
+    "code": "/** Загружает файл на сервер через multipart/form-data запрос. */\npublic HttpResponse<String> uploadFileMultipart(String url, Path filePath, String fieldName) throws IOException, InterruptedException {\n    String boundary = \"----\" + UUID.randomUUID().toString().replace(\"-\", \"\");\n    byte[] fileBytes = Files.readAllBytes(filePath);\n    String body = \"--\" + boundary + \"\\r\\nContent-Disposition: form-data; name=\\\"\" + fieldName\n        + \"\\\"; filename=\\\"\" + filePath.getFileName() + \"\\\"\\r\\nContent-Type: application/octet-stream\\r\\n\\r\\n\";\n    byte[] bodyBytes = concatenate(body.getBytes(StandardCharsets.UTF_8), fileBytes,\n        (\"\\r\\n--\" + boundary + \"--\\r\\n\").getBytes(StandardCharsets.UTF_8));\n    HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url))\n        .header(\"Content-Type\", \"multipart/form-data; boundary=\" + boundary)\n        .POST(HttpRequest.BodyPublishers.ofByteArray(bodyBytes)).build();\n    return HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());\n}",
+    "description": "Загружает файл на сервер через multipart/form-data запрос.",
+    "category": "http"
+  },
+  {
+    "id": "func_153",
+    "language": "java",
+    "function_name": "fetchPaginatedResults",
+    "code": "/** Последовательно обходит все страницы пагинированного API и возвращает все элементы. */\npublic List<String> fetchPaginatedResults(String firstUrl) throws IOException, InterruptedException {\n    List<String> allResults = new ArrayList<>();\n    String nextUrl = firstUrl;\n    while (nextUrl != null) {\n        HttpResponse<String> response = HttpClient.newHttpClient()\n            .send(HttpRequest.newBuilder().uri(URI.create(nextUrl)).GET().build(),\n                HttpResponse.BodyHandlers.ofString());\n        allResults.add(response.body());\n        Map<String, String> links = parsePaginationLinks(response.headers().firstValue(\"Link\").orElse(\"\"));\n        nextUrl = links.get(\"next\");\n    }\n    return allResults;\n}",
+    "description": "Последовательно обходит все страницы пагинированного API и возвращает все элементы.",
+    "category": "http"
+  },
+  {
+    "id": "func_154",
+    "language": "java",
+    "function_name": "addAuthHeaders",
+    "code": "/** Добавляет заголовки авторизации к строителю HTTP-запроса. */\npublic HttpRequest.Builder addAuthHeaders(HttpRequest.Builder builder, String token, String apiKey) {\n    if (token != null && !token.isBlank()) {\n        builder.header(\"Authorization\", \"Bearer \" + token);\n    }\n    if (apiKey != null && !apiKey.isBlank()) {\n        builder.header(\"X-API-Key\", apiKey);\n    }\n    return builder;\n}",
+    "description": "Добавляет заголовки авторизации к строителю HTTP-запроса.",
+    "category": "http"
+  },
+  {
+    "id": "func_155",
+    "language": "java",
+    "function_name": "parseResponseHeaders",
+    "code": "/** Извлекает и возвращает заголовки HTTP-ответа как карту строк. */\npublic Map<String, String> parseResponseHeaders(HttpResponse<?> response) {\n    Map<String, String> headers = new LinkedHashMap<>();\n    response.headers().map().forEach((name, values) -> {\n        if (!values.isEmpty()) headers.put(name, values.get(0));\n    });\n    return headers;\n}",
+    "description": "Извлекает и возвращает заголовки HTTP-ответа как карту строк.",
+    "category": "http"
+  },
+  {
+    "id": "func_156",
+    "language": "java",
+    "function_name": "handleRedirect",
+    "code": "/** Следует HTTP-редиректу и возвращает конечный URL после всех перенаправлений. */\npublic String handleRedirect(String url) throws IOException, InterruptedException {\n    HttpClient client = HttpClient.newBuilder()\n        .followRedirects(HttpClient.Redirect.ALWAYS)\n        .build();\n    HttpRequest request = HttpRequest.newBuilder().uri(URI.create(url)).GET().build();\n    HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());\n    return response.uri().toString();\n}",
+    "description": "Следует HTTP-редиректу и возвращает конечный URL после всех перенаправлений.",
+    "category": "http"
+  },
+  {
+    "id": "func_157",
+    "language": "java",
+    "function_name": "cacheResponse",
+    "code": "/** Сохраняет HTTP-ответ в кэш по ключу URL с заданным TTL. */\npublic void cacheResponse(String url, String responseBody, long ttlSeconds) {\n    if (url == null || responseBody == null) {\n        throw new IllegalArgumentException(\"URL and response body must not be null\");\n    }\n    cache.put(url, responseBody, ttlSeconds, TimeUnit.SECONDS);\n    logger.debug(\"Cached response for {} (TTL={}s)\", url, ttlSeconds);\n}",
+    "description": "Сохраняет HTTP-ответ в кэш по ключу URL с заданным TTL.",
+    "category": "http"
+  },
+  {
+    "id": "func_158",
+    "language": "java",
+    "function_name": "compressRequestBody",
+    "code": "/** Сжимает тело HTTP-запроса с помощью GZIP и возвращает сжатые байты. */\npublic byte[] compressRequestBody(String body) throws IOException {\n    ByteArrayOutputStream baos = new ByteArrayOutputStream();\n    try (GZIPOutputStream gzip = new GZIPOutputStream(baos)) {\n        gzip.write(body.getBytes(StandardCharsets.UTF_8));\n    }\n    return baos.toByteArray();\n}",
+    "description": "Сжимает тело HTTP-запроса с помощью GZIP и возвращает сжатые байты.",
+    "category": "http"
+  },
+  {
+    "id": "func_159",
+    "language": "java",
+    "function_name": "validateSslCert",
+    "code": "/** Проверяет SSL-сертификат хоста и возвращает информацию о нём. */\npublic Map<String, String> validateSslCert(String hostname, int port) throws Exception {\n    SSLSocketFactory factory = (SSLSocketFactory) SSLSocketFactory.getDefault();\n    try (SSLSocket socket = (SSLSocket) factory.createSocket(hostname, port)) {\n        socket.startHandshake();\n        Certificate[] certs = socket.getSession().getPeerCertificates();\n        X509Certificate cert = (X509Certificate) certs[0];\n        Map<String, String> info = new LinkedHashMap<>();\n        info.put(\"subject\", cert.getSubjectX500Principal().getName());\n        info.put(\"issuer\", cert.getIssuerX500Principal().getName());\n        info.put(\"notAfter\", cert.getNotAfter().toString());\n        return info;\n    }\n}",
+    "description": "Проверяет SSL-сертификат хоста и возвращает информацию о нём.",
+    "category": "http"
+  },
+  {
+    "id": "func_160",
+    "language": "java",
+    "function_name": "broadcastToServers",
+    "code": "/** Рассылает HTTP-запрос на список серверов и возвращает результаты. */\npublic Map<String, String> broadcastToServers(List<String> serverUrls, String path, String payload) {\n    Map<String, String> results = new LinkedHashMap<>();\n    for (String baseUrl : serverUrls) {\n        String url = baseUrl + path;\n        try {\n            results.put(url, postJson(url, payload));\n        } catch (Exception e) {\n            results.put(url, \"ERROR: \" + e.getMessage());\n            logger.error(\"Failed to send to {}: {}\", url, e.getMessage());\n        }\n    }\n    return results;\n}",
+    "description": "Рассылает HTTP-запрос на список серверов и возвращает результаты.",
+    "category": "http"
+  },
+  {
+    "id": "func_161",
+    "language": "java",
+    "function_name": "validateEmail",
+    "code": "/** Проверяет корректность адреса электронной почты по регулярному выражению. */\npublic boolean validateEmail(String email) {\n    if (email == null || email.length() > 254) return false;\n    return email.matches(\"^[a-zA-Z0-9._%+\\\\-]+@[a-zA-Z0-9.\\\\-]+\\\\.[a-zA-Z]{2,}$\");\n}",
+    "description": "Проверяет корректность адреса электронной почты по регулярному выражению.",
+    "category": "validation"
+  },
+  {
+    "id": "func_162",
+    "language": "java",
+    "function_name": "validatePhone",
+    "code": "/** Проверяет корректность номера телефона в международном формате E.164. */\npublic boolean validatePhone(String phone) {\n    if (phone == null) return false;\n    String normalized = phone.replaceAll(\"[\\\\s()\\\\-]\", \"\");\n    return normalized.matches(\"\\\\+?[1-9]\\\\d{7,14}\");\n}",
+    "description": "Проверяет корректность номера телефона в международном формате E.164.",
+    "category": "validation"
+  },
+  {
+    "id": "func_163",
+    "language": "java",
+    "function_name": "validateAge",
+    "code": "/** Проверяет, что возраст находится в допустимых границах. */\npublic boolean validateAge(int age, int minAge, int maxAge) {\n    if (minAge < 0 || maxAge > 150 || minAge > maxAge) {\n        throw new IllegalArgumentException(\"Invalid age bounds: \" + minAge + \"–\" + maxAge);\n    }\n    return age >= minAge && age <= maxAge;\n}",
+    "description": "Проверяет, что возраст находится в допустимых границах.",
+    "category": "validation"
+  },
+  {
+    "id": "func_164",
+    "language": "java",
+    "function_name": "sanitizeHtml",
+    "code": "/** Удаляет опасные HTML-теги из строки, оставляя только допустимые. */\npublic String sanitizeHtml(String html) {\n    if (html == null) return null;\n    Whitelist whitelist = Whitelist.relaxed()\n        .addTags(\"s\", \"u\")\n        .removeTags(\"script\", \"style\", \"iframe\");\n    return Jsoup.clean(html, whitelist);\n}",
+    "description": "Удаляет опасные HTML-теги из строки, оставляя только допустимые.",
+    "category": "validation"
+  },
+  {
+    "id": "func_165",
+    "language": "java",
+    "function_name": "parseIsoDate",
+    "code": "/** Разбирает строку в формате ISO-8601 и возвращает объект LocalDate. */\npublic LocalDate parseIsoDate(String dateStr) {\n    if (dateStr == null || dateStr.isBlank()) {\n        throw new IllegalArgumentException(\"Date string must not be blank\");\n    }\n    try {\n        return LocalDate.parse(dateStr.trim(), DateTimeFormatter.ISO_DATE);\n    } catch (DateTimeParseException e) {\n        throw new IllegalArgumentException(\"Invalid ISO date: \" + dateStr);\n    }\n}",
+    "description": "Разбирает строку в формате ISO-8601 и возвращает объект LocalDate.",
+    "category": "validation"
+  },
+  {
+    "id": "func_166",
+    "language": "java",
+    "function_name": "validateCreditCard",
+    "code": "/** Проверяет номер банковской карты по алгоритму Луна. */\npublic boolean validateCreditCard(String number) {\n    if (number == null) return false;\n    String digits = number.replaceAll(\"[\\\\s\\\\-]\", \"\");\n    if (!digits.matches(\"\\\\d{13,19}\")) return false;\n    int sum = 0;\n    boolean alternate = false;\n    for (int i = digits.length() - 1; i >= 0; i--) {\n        int n = digits.charAt(i) - '0';\n        if (alternate) { n *= 2; if (n > 9) n -= 9; }\n        sum += n;\n        alternate = !alternate;\n    }\n    return sum % 10 == 0;\n}",
+    "description": "Проверяет номер банковской карты по алгоритму Луна.",
+    "category": "validation"
+  },
+  {
+    "id": "func_167",
+    "language": "java",
+    "function_name": "checkPasswordStrength",
+    "code": "/** Оценивает надёжность пароля и возвращает уровень: WEAK, MEDIUM или STRONG. */\npublic String checkPasswordStrength(String password) {\n    if (password == null || password.length() < 6) return \"WEAK\";\n    boolean hasUpper = password.chars().anyMatch(Character::isUpperCase);\n    boolean hasLower = password.chars().anyMatch(Character::isLowerCase);\n    boolean hasDigit = password.chars().anyMatch(Character::isDigit);\n    boolean hasSpecial = password.chars().anyMatch(c -> \"!@#$%^&*()_+-=[]{}\".indexOf(c) >= 0);\n    int score = (password.length() >= 12 ? 2 : 1) + (hasUpper ? 1 : 0)\n        + (hasLower ? 1 : 0) + (hasDigit ? 1 : 0) + (hasSpecial ? 1 : 0);\n    if (score >= 6) return \"STRONG\";\n    if (score >= 4) return \"MEDIUM\";\n    return \"WEAK\";\n}",
+    "description": "Оценивает надёжность пароля и возвращает уровень: WEAK, MEDIUM или STRONG.",
+    "category": "validation"
+  },
+  {
+    "id": "func_168",
+    "language": "java",
+    "function_name": "validateUrl",
+    "code": "/** Проверяет корректность URL и наличие допустимой схемы. */\npublic boolean validateUrl(String url) {\n    if (url == null || url.isBlank()) return false;\n    try {\n        URI uri = new URI(url);\n        String scheme = uri.getScheme();\n        return (\"http\".equals(scheme) || \"https\".equals(scheme)) && uri.getHost() != null;\n    } catch (URISyntaxException e) {\n        return false;\n    }\n}",
+    "description": "Проверяет корректность URL и наличие допустимой схемы.",
+    "category": "validation"
+  },
+  {
+    "id": "func_169",
+    "language": "java",
+    "function_name": "parseQueryString",
+    "code": "/** Разбирает строку запроса URL и возвращает карту параметров. */\npublic Map<String, String> parseQueryString(String queryString) {\n    Map<String, String> params = new LinkedHashMap<>();\n    if (queryString == null || queryString.isBlank()) return params;\n    String qs = queryString.startsWith(\"?\") ? queryString.substring(1) : queryString;\n    for (String pair : qs.split(\"&\")) {\n        String[] kv = pair.split(\"=\", 2);\n        String key = URLDecoder.decode(kv[0], StandardCharsets.UTF_8);\n        String value = kv.length == 2 ? URLDecoder.decode(kv[1], StandardCharsets.UTF_8) : \"\";\n        params.put(key, value);\n    }\n    return params;\n}",
+    "description": "Разбирает строку запроса URL и возвращает карту параметров.",
+    "category": "validation"
+  },
+  {
+    "id": "func_170",
+    "language": "java",
+    "function_name": "normalizePhoneNumber",
+    "code": "/** Нормализует номер телефона, приводя его к формату +7XXXXXXXXXX для России. */\npublic String normalizePhoneNumber(String phone) {\n    if (phone == null) throw new IllegalArgumentException(\"Phone must not be null\");\n    String digits = phone.replaceAll(\"[^\\\\d+]\", \"\");\n    if (digits.startsWith(\"+7\")) return digits;\n    if (digits.startsWith(\"8\") && digits.length() == 11) return \"+7\" + digits.substring(1);\n    if (digits.startsWith(\"7\") && digits.length() == 11) return \"+\" + digits;\n    if (digits.length() == 10) return \"+7\" + digits;\n    throw new IllegalArgumentException(\"Cannot normalize phone: \" + phone);\n}",
+    "description": "Нормализует номер телефона, приводя его к формату +7XXXXXXXXXX для России.",
+    "category": "validation"
+  },
+  {
+    "id": "func_171",
+    "language": "java",
+    "function_name": "validateInn",
+    "code": "/** Проверяет корректность ИНН физического или юридического лица по контрольной сумме. */\npublic boolean validateInn(String inn) {\n    if (inn == null || !inn.matches(\"\\\\d{10}|\\\\d{12}\")) return false;\n    int[] digits = inn.chars().map(c -> c - '0').toArray();\n    if (inn.length() == 10) {\n        int[] w = {2, 4, 10, 3, 5, 9, 4, 6, 8};\n        int check = 0;\n        for (int i = 0; i < 9; i++) check += w[i] * digits[i];\n        return check % 11 % 10 == digits[9];\n    }\n    int[] w1 = {7, 2, 4, 10, 3, 5, 9, 4, 6, 8};\n    int[] w2 = {3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8};\n    int c1 = 0, c2 = 0;\n    for (int i = 0; i < 10; i++) c1 += w1[i] * digits[i];\n    for (int i = 0; i < 11; i++) c2 += w2[i] * digits[i];\n    return c1 % 11 % 10 == digits[10] && c2 % 11 % 10 == digits[11];\n}",
+    "description": "Проверяет корректность ИНН физического или юридического лица по контрольной сумме.",
+    "category": "validation"
+  },
+  {
+    "id": "func_172",
+    "language": "java",
+    "function_name": "validateSnils",
+    "code": "/** Проверяет корректность СНИЛС по контрольному числу. */\npublic boolean validateSnils(String snils) {\n    if (snils == null) return false;\n    String digits = snils.replaceAll(\"[\\\\s\\\\-]\", \"\");\n    if (!digits.matches(\"\\\\d{11}\")) return false;\n    int sum = 0;\n    for (int i = 0; i < 9; i++) sum += (digits.charAt(i) - '0') * (9 - i);\n    int checkNum = sum % 101;\n    if (checkNum == 100) checkNum = 0;\n    int control = Integer.parseInt(digits.substring(9));\n    return checkNum == control;\n}",
+    "description": "Проверяет корректность СНИЛС по контрольному числу.",
+    "category": "validation"
+  },
+  {
+    "id": "func_173",
+    "language": "java",
+    "function_name": "validatePassportRf",
+    "code": "/** Проверяет формат серии и номера паспорта гражданина РФ. */\npublic boolean validatePassportRf(String series, String number) {\n    if (series == null || number == null) return false;\n    String cleanSeries = series.replaceAll(\"\\\\s\", \"\");\n    String cleanNumber = number.replaceAll(\"\\\\s\", \"\");\n    return cleanSeries.matches(\"\\\\d{4}\") && cleanNumber.matches(\"\\\\d{6}\");\n}",
+    "description": "Проверяет формат серии и номера паспорта гражданина РФ.",
+    "category": "validation"
+  },
+  {
+    "id": "func_174",
+    "language": "java",
+    "function_name": "stripEmoji",
+    "code": "/** Удаляет все эмодзи из строки, оставляя обычный текст. */\npublic String stripEmoji(String text) {\n    if (text == null) return null;\n    return text.replaceAll(\n        \"[\\\\x{1F600}-\\\\x{1F64F}\\\\x{1F300}-\\\\x{1F5FF}\\\\x{1F680}-\\\\x{1F6FF}\"\n        + \"\\\\x{1F700}-\\\\x{1F77F}\\\\x{2600}-\\\\x{26FF}\\\\x{2700}-\\\\x{27BF}\"\n        + \"\\\\x{FE00}-\\\\x{FE0F}\\\\x{1F900}-\\\\x{1F9FF}]\",\n        \"\").trim();\n}",
+    "description": "Удаляет все эмодзи из строки, оставляя обычный текст.",
+    "category": "validation"
+  },
+  {
+    "id": "func_175",
+    "language": "java",
+    "function_name": "validateColorHex",
+    "code": "/** Проверяет корректность цвета в формате HEX (#RGB или #RRGGBB). */\npublic boolean validateColorHex(String color) {\n    if (color == null) return false;\n    return color.matches(\"^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$\");\n}",
+    "description": "Проверяет корректность цвета в формате HEX (#RGB или #RRGGBB).",
+    "category": "validation"
+  },
+  {
+    "id": "func_176",
+    "language": "java",
+    "function_name": "parseCsvRow",
+    "code": "/** Разбирает строку CSV с учётом кавычек и возвращает список значений. */\npublic List<String> parseCsvRow(String row, char delimiter) {\n    List<String> fields = new ArrayList<>();\n    if (row == null) return fields;\n    StringBuilder current = new StringBuilder();\n    boolean inQuotes = false;\n    for (int i = 0; i < row.length(); i++) {\n        char c = row.charAt(i);\n        if (c == '\"') {\n            if (inQuotes && i + 1 < row.length() && row.charAt(i + 1) == '\"') { current.append('\"'); i++; }\n            else inQuotes = !inQuotes;\n        } else if (c == delimiter && !inQuotes) {\n            fields.add(current.toString()); current.setLength(0);\n        } else {\n            current.append(c);\n        }\n    }\n    fields.add(current.toString());\n    return fields;\n}",
+    "description": "Разбирает строку CSV с учётом кавычек и возвращает список значений.",
+    "category": "validation"
+  },
+  {
+    "id": "func_177",
+    "language": "java",
+    "function_name": "validateZipCode",
+    "code": "/** Проверяет корректность почтового индекса для заданной страны. */\npublic boolean validateZipCode(String zipCode, String countryCode) {\n    if (zipCode == null || countryCode == null) return false;\n    return switch (countryCode.toUpperCase()) {\n        case \"RU\" -> zipCode.matches(\"\\\\d{6}\");\n        case \"US\" -> zipCode.matches(\"\\\\d{5}(-\\\\d{4})?\");\n        case \"GB\" -> zipCode.matches(\"[A-Z]{1,2}\\\\d[A-Z\\\\d]?\\\\s*\\\\d[A-Z]{2}\");\n        case \"DE\" -> zipCode.matches(\"\\\\d{5}\");\n        default -> !zipCode.isBlank();\n    };\n}",
+    "description": "Проверяет корректность почтового индекса для заданной страны.",
+    "category": "validation"
+  },
+  {
+    "id": "func_178",
+    "language": "java",
+    "function_name": "detectLanguage",
+    "code": "/** Определяет язык текста эвристически по символьному составу строки. */\npublic String detectLanguage(String text) {\n    if (text == null || text.isBlank()) return \"unknown\";\n    long cyrillic = text.chars().filter(c -> c >= 0x0400 && c <= 0x04FF).count();\n    long latin = text.chars().filter(c -> (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')).count();\n    long letters = text.chars().filter(Character::isLetter).count();\n    if (letters == 0) return \"unknown\";\n    if ((double) cyrillic / letters > 0.5) return \"ru\";\n    if ((double) latin / letters > 0.5) return \"en\";\n    return \"other\";\n}",
+    "description": "Определяет язык текста эвристически по символьному составу строки.",
+    "category": "validation"
+  },
+  {
+    "id": "func_179",
+    "language": "java",
+    "function_name": "validateIban",
+    "code": "/** Проверяет корректность номера IBAN по алгоритму модульной арифметики. */\npublic boolean validateIban(String iban) {\n    if (iban == null) return false;\n    String normalized = iban.replaceAll(\"\\\\s\", \"\").toUpperCase();\n    if (!normalized.matches(\"[A-Z]{2}\\\\d{2}[A-Z0-9]{1,30}\")) return false;\n    String rearranged = normalized.substring(4) + normalized.substring(0, 4);\n    StringBuilder numeric = new StringBuilder();\n    for (char c : rearranged.toCharArray()) {\n        numeric.append(Character.isDigit(c) ? c : (char) (c - 'A' + 10 + '0'));\n        if (Character.isLetter(c)) { numeric.deleteCharAt(numeric.length() - 1); numeric.append(c - 'A' + 10); }\n    }\n    return new java.math.BigInteger(numeric.toString()).mod(java.math.BigInteger.valueOf(97)).intValue() == 1;\n}",
+    "description": "Проверяет корректность номера IBAN по алгоритму модульной арифметики.",
+    "category": "validation"
+  },
+  {
+    "id": "func_180",
+    "language": "java",
+    "function_name": "extractPhoneNumbers",
+    "code": "/** Извлекает все номера телефонов из текста и возвращает их список. */\npublic List<String> extractPhoneNumbers(String text) {\n    List<String> phones = new ArrayList<>();\n    if (text == null) return phones;\n    Pattern pattern = Pattern.compile(\n        \"(?:\\\\+7|8)[\\\\s\\\\-]?\\\\(?\\\\d{3}\\\\)?[\\\\s\\\\-]?\\\\d{3}[\\\\s\\\\-]?\\\\d{2}[\\\\s\\\\-]?\\\\d{2}\");\n    Matcher matcher = pattern.matcher(text);\n    while (matcher.find()) phones.add(matcher.group().replaceAll(\"\\\\s\", \"\"));\n    return phones;\n}",
+    "description": "Извлекает все номера телефонов из текста и возвращает их список.",
+    "category": "validation"
+  },
+  {
+    "id": "func_181",
+    "language": "java",
+    "function_name": "formatBytes",
+    "code": "/** Форматирует количество байт в читаемую строку (КБ, МБ, ГБ). */\npublic String formatBytes(long bytes) {\n    if (bytes < 0) throw new IllegalArgumentException(\"bytes must be non-negative\");\n    if (bytes < 1024) return bytes + \" B\";\n    if (bytes < 1024 * 1024) return String.format(\"%.1f KB\", bytes / 1024.0);\n    if (bytes < 1024L * 1024 * 1024) return String.format(\"%.1f MB\", bytes / (1024.0 * 1024));\n    return String.format(\"%.2f GB\", bytes / (1024.0 * 1024 * 1024));\n}",
+    "description": "Форматирует количество байт в читаемую строку (КБ, МБ, ГБ).",
+    "category": "utils"
+  },
+  {
+    "id": "func_182",
+    "language": "java",
+    "function_name": "chunkList",
+    "code": "/** Разбивает список на подсписки заданного размера. */\npublic <T> List<List<T>> chunkList(List<T> list, int chunkSize) {\n    if (chunkSize <= 0) throw new IllegalArgumentException(\"chunkSize must be > 0\");\n    List<List<T>> chunks = new ArrayList<>();\n    for (int i = 0; i < list.size(); i += chunkSize) {\n        chunks.add(new ArrayList<>(list.subList(i, Math.min(i + chunkSize, list.size()))));\n    }\n    return chunks;\n}",
+    "description": "Разбивает список на подсписки заданного размера.",
+    "category": "utils"
+  },
+  {
+    "id": "func_183",
+    "language": "java",
+    "function_name": "flattenMap",
+    "code": "/** Преобразует вложенную карту в плоскую с ключами через точку. */\n@SuppressWarnings(\"unchecked\")\npublic Map<String, Object> flattenMap(Map<String, Object> map) {\n    return flattenMap(map, \"\");\n}\n\n@SuppressWarnings(\"unchecked\")\npublic Map<String, Object> flattenMap(Map<String, Object> map, String prefix) {\n    Map<String, Object> result = new LinkedHashMap<>();\n    for (Map.Entry<String, Object> entry : map.entrySet()) {\n        String key = prefix.isEmpty() ? entry.getKey() : prefix + \".\" + entry.getKey();\n        if (entry.getValue() instanceof Map) {\n            result.putAll(flattenMap((Map<String, Object>) entry.getValue(), key));\n        } else {\n            result.put(key, entry.getValue());\n        }\n    }\n    return result;\n}",
+    "description": "Преобразует вложенную карту в плоскую с ключами через точку.",
+    "category": "utils"
+  },
+  {
+    "id": "func_184",
+    "language": "java",
+    "function_name": "retryDecorator",
+    "code": "/** Оборачивает вызов Callable в логику повтора при исключении. */\npublic <T> T retryDecorator(Callable<T> action, int maxRetries, long delayMs) throws Exception {\n    Exception lastException = null;\n    for (int attempt = 0; attempt <= maxRetries; attempt++) {\n        try {\n            return action.call();\n        } catch (Exception e) {\n            lastException = e;\n            if (attempt < maxRetries) Thread.sleep(delayMs);\n        }\n    }\n    throw lastException;\n}",
+    "description": "Оборачивает вызов Callable в логику повтора при исключении.",
+    "category": "utils"
+  },
+  {
+    "id": "func_185",
+    "language": "java",
+    "function_name": "memoize",
+    "code": "/** Возвращает мемоизированную версию функции с кэшированием результатов. */\npublic <K, V> Function<K, V> memoize(Function<K, V> fn) {\n    Map<K, V> cache = new ConcurrentHashMap<>();\n    return key -> cache.computeIfAbsent(key, fn);\n}",
+    "description": "Возвращает мемоизированную версию функции с кэшированием результатов.",
+    "category": "utils"
+  },
+  {
+    "id": "func_186",
+    "language": "java",
+    "function_name": "timingDecorator",
+    "code": "/** Оборачивает вызов Callable в замер времени и логирует результат. */\npublic <T> T timingDecorator(Callable<T> action, String label) throws Exception {\n    long start = System.nanoTime();\n    try {\n        return action.call();\n    } finally {\n        long elapsed = (System.nanoTime() - start) / 1_000_000;\n        logger.info(\"[timing] {} took {}ms\", label, elapsed);\n    }\n}",
+    "description": "Оборачивает вызов Callable в замер времени и логирует результат.",
+    "category": "utils"
+  },
+  {
+    "id": "func_187",
+    "language": "java",
+    "function_name": "deepMergeMaps",
+    "code": "/** Рекурсивно объединяет две карты, при конфликте значения из второй карты имеют приоритет. */\n@SuppressWarnings(\"unchecked\")\npublic Map<String, Object> deepMergeMaps(Map<String, Object> base, Map<String, Object> override) {\n    Map<String, Object> result = new LinkedHashMap<>(base);\n    for (Map.Entry<String, Object> entry : override.entrySet()) {\n        Object baseVal = result.get(entry.getKey());\n        if (baseVal instanceof Map && entry.getValue() instanceof Map) {\n            result.put(entry.getKey(), deepMergeMaps(\n                (Map<String, Object>) baseVal, (Map<String, Object>) entry.getValue()));\n        } else {\n            result.put(entry.getKey(), entry.getValue());\n        }\n    }\n    return result;\n}",
+    "description": "Рекурсивно объединяет две карты, при конфликте значения из второй карты имеют приоритет.",
+    "category": "utils"
+  },
+  {
+    "id": "func_188",
+    "language": "java",
+    "function_name": "formatDuration",
+    "code": "/** Форматирует количество секунд в строку вида «1ч 23м 45с». */\npublic String formatDuration(long seconds) {\n    if (seconds < 0) throw new IllegalArgumentException(\"seconds must be non-negative\");\n    long h = seconds / 3600;\n    long m = (seconds % 3600) / 60;\n    long s = seconds % 60;\n    StringBuilder sb = new StringBuilder();\n    if (h > 0) sb.append(h).append(\"ч \");\n    if (m > 0 || h > 0) sb.append(m).append(\"м \");\n    sb.append(s).append(\"с\");\n    return sb.toString().trim();\n}",
+    "description": "Форматирует количество секунд в строку вида «1ч 23м 45с».",
+    "category": "utils"
+  },
+  {
+    "id": "func_189",
+    "language": "java",
+    "function_name": "getUniqueId",
+    "code": "/** Генерирует уникальный идентификатор на основе UUID v4. */\npublic String getUniqueId() {\n    return UUID.randomUUID().toString().replace(\"-\", \"\");\n}",
+    "description": "Генерирует уникальный идентификатор на основе UUID v4.",
+    "category": "utils"
+  },
+  {
+    "id": "func_190",
+    "language": "java",
+    "function_name": "truncateString",
+    "code": "/** Усекает строку до заданной длины и добавляет многоточие, если строка была длиннее. */\npublic String truncateString(String text, int maxLength) {\n    if (text == null) return null;\n    if (maxLength <= 0) throw new IllegalArgumentException(\"maxLength must be > 0\");\n    if (text.length() <= maxLength) return text;\n    return text.substring(0, maxLength - 1) + \"\\u2026\";\n}",
+    "description": "Усекает строку до заданной длины и добавляет многоточие, если строка была длиннее.",
+    "category": "utils"
+  },
+  {
+    "id": "func_191",
+    "language": "java",
+    "function_name": "slugify",
+    "code": "/** Преобразует строку в URL-безопасный slug в нижнем регистре. */\npublic String slugify(String text) {\n    if (text == null) return \"\";\n    String normalized = Normalizer.normalize(text, Normalizer.Form.NFD)\n        .replaceAll(\"\\\\p{InCombiningDiacriticalMarks}+\", \"\");\n    return normalized.toLowerCase()\n        .replaceAll(\"[^a-z0-9\\\\s-]\", \"\")\n        .replaceAll(\"[\\\\s-]+\", \"-\")\n        .replaceAll(\"^-|-$\", \"\");\n}",
+    "description": "Преобразует строку в URL-безопасный slug в нижнем регистре.",
+    "category": "utils"
+  },
+  {
+    "id": "func_192",
+    "language": "java",
+    "function_name": "calculateHash",
+    "code": "/** Вычисляет SHA-256 хэш содержимого файла и возвращает hex-строку. */\npublic String calculateHash(Path filePath) throws IOException, NoSuchAlgorithmException {\n    MessageDigest digest = MessageDigest.getInstance(\"SHA-256\");\n    try (InputStream is = Files.newInputStream(filePath)) {\n        byte[] buffer = new byte[8192];\n        int read;\n        while ((read = is.read(buffer)) != -1) digest.update(buffer, 0, read);\n    }\n    byte[] hashBytes = digest.digest();\n    StringBuilder hex = new StringBuilder();\n    for (byte b : hashBytes) hex.append(String.format(\"%02x\", b));\n    return hex.toString();\n}",
+    "description": "Вычисляет SHA-256 хэш содержимого файла и возвращает hex-строку.",
+    "category": "utils"
+  },
+  {
+    "id": "func_193",
+    "language": "java",
+    "function_name": "readYamlFile",
+    "code": "/** Читает YAML-файл и возвращает его содержимое как карту объектов. */\npublic Map<String, Object> readYamlFile(Path yamlPath) throws IOException {\n    if (!Files.exists(yamlPath)) {\n        throw new FileNotFoundException(\"YAML file not found: \" + yamlPath);\n    }\n    Yaml yaml = new Yaml();\n    try (InputStream is = Files.newInputStream(yamlPath)) {\n        Map<String, Object> result = yaml.load(is);\n        return result != null ? result : Collections.emptyMap();\n    }\n}",
+    "description": "Читает YAML-файл и возвращает его содержимое как карту объектов.",
+    "category": "utils"
+  },
+  {
+    "id": "func_194",
+    "language": "java",
+    "function_name": "writeSerialized",
+    "code": "/** Сериализует объект в JSON и записывает в файл с указанной кодировкой. */\npublic void writeSerialized(Object obj, Path outputPath) throws IOException {\n    ObjectMapper mapper = new ObjectMapper()\n        .enable(SerializationFeature.INDENT_OUTPUT);\n    String json = mapper.writeValueAsString(obj);\n    Files.writeString(outputPath, json, StandardCharsets.UTF_8,\n        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);\n    logger.debug(\"Serialized {} bytes to {}\", json.length(), outputPath);\n}",
+    "description": "Сериализует объект в JSON и записывает в файл с указанной кодировкой.",
+    "category": "utils"
+  },
+  {
+    "id": "func_195",
+    "language": "java",
+    "function_name": "compressFile",
+    "code": "/** Сжимает файл с использованием GZIP и сохраняет результат рядом с исходным. */\npublic Path compressFile(Path source) throws IOException {\n    Path target = source.resolveSibling(source.getFileName() + \".gz\");\n    try (InputStream in = Files.newInputStream(source);\n         GZIPOutputStream out = new GZIPOutputStream(Files.newOutputStream(target))) {\n        byte[] buffer = new byte[8192];\n        int read;\n        while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);\n    }\n    return target;\n}",
+    "description": "Сжимает файл с использованием GZIP и сохраняет результат рядом с исходным.",
+    "category": "utils"
+  },
+  {
+    "id": "func_196",
+    "language": "java",
+    "function_name": "decompressFile",
+    "code": "/** Распаковывает GZIP-файл и сохраняет результат по указанному пути. */\npublic Path decompressFile(Path gzipSource, Path destination) throws IOException {\n    try (GZIPInputStream in = new GZIPInputStream(Files.newInputStream(gzipSource));\n         OutputStream out = Files.newOutputStream(destination)) {\n        byte[] buffer = new byte[8192];\n        int read;\n        while ((read = in.read(buffer)) != -1) out.write(buffer, 0, read);\n    }\n    return destination;\n}",
+    "description": "Распаковывает GZIP-файл и сохраняет результат по указанному пути.",
+    "category": "utils"
+  },
+  {
+    "id": "func_197",
+    "language": "java",
+    "function_name": "sendEmail",
+    "code": "/** Отправляет электронное письмо через SMTP с заданными параметрами. */\npublic void sendEmail(String to, String subject, String body, String fromAddress) throws MessagingException {\n    Properties props = new Properties();\n    props.put(\"mail.smtp.host\", smtpHost);\n    props.put(\"mail.smtp.port\", smtpPort);\n    props.put(\"mail.smtp.auth\", \"true\");\n    props.put(\"mail.smtp.starttls.enable\", \"true\");\n    Session session = Session.getInstance(props,\n        new Authenticator() { protected PasswordAuthentication getPasswordAuthentication() {\n            return new PasswordAuthentication(smtpUser, smtpPassword); } });\n    Message msg = new MimeMessage(session);\n    msg.setFrom(new InternetAddress(fromAddress));\n    msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to));\n    msg.setSubject(subject);\n    msg.setText(body);\n    Transport.send(msg);\n}",
+    "description": "Отправляет электронное письмо через SMTP с заданными параметрами.",
+    "category": "utils"
+  },
+  {
+    "id": "func_198",
+    "language": "java",
+    "function_name": "logEvent",
+    "code": "/** Записывает структурированное событие в журнал аудита с временной меткой. */\npublic void logEvent(String eventType, String userId, Map<String, Object> metadata) {\n    Map<String, Object> event = new LinkedHashMap<>();\n    event.put(\"type\", eventType);\n    event.put(\"userId\", userId);\n    event.put(\"timestamp\", Instant.now().toString());\n    event.put(\"metadata\", metadata != null ? metadata : Collections.emptyMap());\n    String json;\n    try {\n        json = new ObjectMapper().writeValueAsString(event);\n    } catch (JsonProcessingException e) {\n        json = \"{\\\"error\\\":\\\"serialization failed\\\"}\";\n    }\n    auditLogger.info(json);\n}",
+    "description": "Записывает структурированное событие в журнал аудита с временной меткой.",
+    "category": "utils"
+  },
+  {
+    "id": "func_199",
+    "language": "java",
+    "function_name": "formatCurrencyRub",
+    "code": "/** Форматирует сумму в рублях с разделителями тысяч и символом валюты. */\npublic String formatCurrencyRub(BigDecimal amount) {\n    if (amount == null) throw new IllegalArgumentException(\"amount must not be null\");\n    NumberFormat nf = NumberFormat.getInstance(new Locale(\"ru\", \"RU\"));\n    nf.setMinimumFractionDigits(2);\n    nf.setMaximumFractionDigits(2);\n    return nf.format(amount) + \"\\u00a0\\u20bd\";\n}",
+    "description": "Форматирует сумму в рублях с разделителями тысяч и символом валюты.",
+    "category": "utils"
+  },
+  {
+    "id": "func_200",
+    "language": "java",
+    "function_name": "parseHumanDuration",
+    "code": "/** Разбирает строку вида «2h 30m 15s» и возвращает длительность в секундах. */\npublic long parseHumanDuration(String durationStr) {\n    if (durationStr == null || durationStr.isBlank()) {\n        throw new IllegalArgumentException(\"Duration string must not be blank\");\n    }\n    long total = 0;\n    Pattern p = Pattern.compile(\"(\\\\d+)\\\\s*([smhdwSMHDW])\");\n    Matcher m = p.matcher(durationStr);\n    boolean found = false;\n    while (m.find()) {\n        found = true;\n        long val = Long.parseLong(m.group(1));\n        total += switch (m.group(2).toLowerCase()) {\n            case \"s\" -> val;\n            case \"m\" -> val * 60;\n            case \"h\" -> val * 3600;\n            case \"d\" -> val * 86400;\n            case \"w\" -> val * 604800;\n            default -> 0;\n        };\n    }\n    if (!found) throw new IllegalArgumentException(\"Cannot parse duration: \" + durationStr);\n    return total;\n}",
+    "description": "Разбирает строку вида «2h 30m 15s» и возвращает длительность в секундах.",
+    "category": "utils"
+  }
+]

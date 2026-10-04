@@ -1,0 +1,152 @@
+[
+  {
+    "question_id": "q_01",
+    "query": "как проверить, истёк ли токен?",
+    "language": "ru",
+    "correct_chunk_id": "func_001"
+  },
+  {
+    "question_id": "q_02",
+    "query": "where is password hashing implemented",
+    "language": "en",
+    "correct_chunk_id": "func_002"
+  },
+  {
+    "question_id": "q_03",
+    "query": "проверка двухфакторной аутентификации по коду",
+    "language": "ru",
+    "correct_chunk_id": "func_014"
+  },
+  {
+    "question_id": "q_04",
+    "query": "logout user and clear session",
+    "language": "en",
+    "correct_chunk_id": "func_010"
+  },
+  {
+    "question_id": "q_05",
+    "query": "проверить права администратора на эндпоинте",
+    "language": "ru",
+    "correct_chunk_id": "func_109"
+  },
+  {
+    "question_id": "q_06",
+    "query": "получить пользователя по электронной почте",
+    "language": "ru",
+    "correct_chunk_id": "func_022"
+  },
+  {
+    "question_id": "q_07",
+    "query": "rollback transaction in case of error",
+    "language": "en",
+    "correct_chunk_id": "func_036"
+  },
+  {
+    "question_id": "q_08",
+    "query": "массовая вставка большого количества записей",
+    "language": "ru",
+    "correct_chunk_id": "func_140"
+  },
+  {
+    "question_id": "q_09",
+    "query": "soft delete a record without removing it",
+    "language": "en",
+    "correct_chunk_id": "func_029"
+  },
+  {
+    "question_id": "q_10",
+    "query": "пагинация при выборке списка пользователей",
+    "language": "ru",
+    "correct_chunk_id": "func_026"
+  },
+  {
+    "question_id": "q_11",
+    "query": "обработка ситуации, когда сервер вернул 429",
+    "language": "ru",
+    "correct_chunk_id": "func_047"
+  },
+  {
+    "question_id": "q_12",
+    "query": "send file via http multipart upload",
+    "language": "en",
+    "correct_chunk_id": "func_152"
+  },
+  {
+    "question_id": "q_13",
+    "query": "отправка уведомления через webhook",
+    "language": "ru",
+    "correct_chunk_id": "func_046"
+  },
+  {
+    "question_id": "q_14",
+    "query": "retry http request with exponential backoff",
+    "language": "en",
+    "correct_chunk_id": "func_044"
+  },
+  {
+    "question_id": "q_15",
+    "query": "проксирование запроса на другой сервер",
+    "language": "ru",
+    "correct_chunk_id": "func_149"
+  },
+  {
+    "question_id": "q_16",
+    "query": "проверка номера банковской карты",
+    "language": "ru",
+    "correct_chunk_id": "func_066"
+  },
+  {
+    "question_id": "q_17",
+    "query": "check email format validity",
+    "language": "en",
+    "correct_chunk_id": "func_061"
+  },
+  {
+    "question_id": "q_18",
+    "query": "проверить корректность ИНН",
+    "language": "ru",
+    "correct_chunk_id": "func_071"
+  },
+  {
+    "question_id": "q_19",
+    "query": "remove emoji characters from text",
+    "language": "en",
+    "correct_chunk_id": "func_174"
+  },
+  {
+    "question_id": "q_20",
+    "query": "привести телефон к единому формату",
+    "language": "ru",
+    "correct_chunk_id": "func_070"
+  },
+  {
+    "question_id": "q_21",
+    "query": "разбить большой список на части одинаковой длины",
+    "language": "ru",
+    "correct_chunk_id": "func_082"
+  },
+  {
+    "question_id": "q_22",
+    "query": "memoization decorator for function results",
+    "language": "en",
+    "correct_chunk_id": "func_085"
+  },
+  {
+    "question_id": "q_23",
+    "query": "форматировать число секунд в человекочитаемый вид",
+    "language": "ru",
+    "correct_chunk_id": "func_188"
+  },
+  {
+    "question_id": "q_24",
+    "query": "compute file hash for verification",
+    "language": "en",
+    "correct_chunk_id": "func_192"
+  },
+  {
+    "question_id": "q_25",
+    "query": "формат суммы как 1 234,56 рублей",
+    "language": "ru",
+    "correct_chunk_id": "func_099"
+  }
+]

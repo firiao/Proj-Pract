@@ -1,0 +1,51 @@
+﻿model,question_id,query,language,correct_id,top3_ids,hit,rank
+paraphrase-multilingual-MiniLM-L12-v2,q_01,"как проверить, истёк ли токен?",ru,func_001,"func_171, func_071, func_161",False,0
+paraphrase-multilingual-MiniLM-L12-v2,q_02,where is password hashing implemented,en,func_002,"func_102, func_002, func_105",True,2
+paraphrase-multilingual-MiniLM-L12-v2,q_03,проверка двухфакторной аутентификации по коду,ru,func_014,"func_014, func_105, func_114",True,1
+paraphrase-multilingual-MiniLM-L12-v2,q_04,logout user and clear session,en,func_010,"func_010, func_110, func_019",True,1
+paraphrase-multilingual-MiniLM-L12-v2,q_05,проверить права администратора на эндпоинте,ru,func_109,"func_009, func_109, func_105",True,2
+paraphrase-multilingual-MiniLM-L12-v2,q_06,получить пользователя по электронной почте,ru,func_022,"func_022, func_122, func_116",True,1
+paraphrase-multilingual-MiniLM-L12-v2,q_07,rollback transaction in case of error,en,func_036,"func_036, func_136, func_047",True,1
+paraphrase-multilingual-MiniLM-L12-v2,q_08,массовая вставка большого количества записей,ru,func_140,"func_127, func_081, func_147",False,0
+paraphrase-multilingual-MiniLM-L12-v2,q_09,soft delete a record without removing it,en,func_029,"func_029, func_129, func_125",True,1
+paraphrase-multilingual-MiniLM-L12-v2,q_10,пагинация при выборке списка пользователей,ru,func_026,"func_027, func_127, func_026",True,3
+paraphrase-multilingual-MiniLM-L12-v2,q_11,"обработка ситуации, когда сервер вернул 429",ru,func_047,"func_147, func_047, func_160",True,2
+paraphrase-multilingual-MiniLM-L12-v2,q_12,send file via http multipart upload,en,func_152,"func_152, func_052, func_160",True,1
+paraphrase-multilingual-MiniLM-L12-v2,q_13,отправка уведомления через webhook,ru,func_046,"func_146, func_046, func_198",True,2
+paraphrase-multilingual-MiniLM-L12-v2,q_14,retry http request with exponential backoff,en,func_044,"func_044, func_056, func_047",True,1
+paraphrase-multilingual-MiniLM-L12-v2,q_15,проксирование запроса на другой сервер,ru,func_149,"func_060, func_049, func_149",True,3
+paraphrase-multilingual-MiniLM-L12-v2,q_16,проверка номера банковской карты,ru,func_066,"func_066, func_062, func_166",True,1
+paraphrase-multilingual-MiniLM-L12-v2,q_17,check email format validity,en,func_061,"func_161, func_061, func_171",True,2
+paraphrase-multilingual-MiniLM-L12-v2,q_18,проверить корректность ИНН,ru,func_071,"func_171, func_071, func_161",True,2
+paraphrase-multilingual-MiniLM-L12-v2,q_19,remove emoji characters from text,en,func_174,"func_074, func_174, func_064",True,2
+paraphrase-multilingual-MiniLM-L12-v2,q_20,привести телефон к единому формату,ru,func_070,"func_180, func_170, func_070",True,3
+paraphrase-multilingual-MiniLM-L12-v2,q_21,разбить большой список на части одинаковой длины,ru,func_082,"func_090, func_082, func_182",True,2
+paraphrase-multilingual-MiniLM-L12-v2,q_22,memoization decorator for function results,en,func_085,"func_185, func_086, func_085",True,3
+paraphrase-multilingual-MiniLM-L12-v2,q_23,форматировать число секунд в человекочитаемый вид,ru,func_188,"func_188, func_088, func_100",True,1
+paraphrase-multilingual-MiniLM-L12-v2,q_24,compute file hash for verification,en,func_192,"func_092, func_105, func_014",False,0
+paraphrase-multilingual-MiniLM-L12-v2,q_25,"формат суммы как 1 234,56 рублей",ru,func_099,"func_099, func_081, func_199",True,1
+paraphrase-multilingual-mpnet-base-v2,q_01,"как проверить, истёк ли токен?",ru,func_001,"func_166, func_066, func_171",False,0
+paraphrase-multilingual-mpnet-base-v2,q_02,where is password hashing implemented,en,func_002,"func_002, func_102, func_003",True,1
+paraphrase-multilingual-mpnet-base-v2,q_03,проверка двухфакторной аутентификации по коду,ru,func_014,"func_014, func_114, func_105",True,1
+paraphrase-multilingual-mpnet-base-v2,q_04,logout user and clear session,en,func_010,"func_010, func_110, func_019",True,1
+paraphrase-multilingual-mpnet-base-v2,q_05,проверить права администратора на эндпоинте,ru,func_109,"func_008, func_108, func_109",True,3
+paraphrase-multilingual-mpnet-base-v2,q_06,получить пользователя по электронной почте,ru,func_022,"func_122, func_022, func_116",True,2
+paraphrase-multilingual-mpnet-base-v2,q_07,rollback transaction in case of error,en,func_036,"func_036, func_136, func_035",True,1
+paraphrase-multilingual-mpnet-base-v2,q_08,массовая вставка большого количества записей,ru,func_140,"func_040, func_127, func_140",True,3
+paraphrase-multilingual-mpnet-base-v2,q_09,soft delete a record without removing it,en,func_029,"func_025, func_029, func_125",True,2
+paraphrase-multilingual-mpnet-base-v2,q_10,пагинация при выборке списка пользователей,ru,func_026,"func_026, func_127, func_027",True,1
+paraphrase-multilingual-mpnet-base-v2,q_11,"обработка ситуации, когда сервер вернул 429",ru,func_047,"func_047, func_147, func_056",True,1
+paraphrase-multilingual-mpnet-base-v2,q_12,send file via http multipart upload,en,func_152,"func_052, func_152, func_043",True,2
+paraphrase-multilingual-mpnet-base-v2,q_13,отправка уведомления через webhook,ru,func_046,"func_146, func_046, func_116",True,2
+paraphrase-multilingual-mpnet-base-v2,q_14,retry http request with exponential backoff,en,func_044,"func_044, func_144, func_056",True,1
+paraphrase-multilingual-mpnet-base-v2,q_15,проксирование запроса на другой сервер,ru,func_149,"func_060, func_149, func_049",True,2
+paraphrase-multilingual-mpnet-base-v2,q_16,проверка номера банковской карты,ru,func_066,"func_066, func_166, func_062",True,1
+paraphrase-multilingual-mpnet-base-v2,q_17,check email format validity,en,func_061,"func_161, func_061, func_122",True,2
+paraphrase-multilingual-mpnet-base-v2,q_18,проверить корректность ИНН,ru,func_071,"func_071, func_171, func_072",True,1
+paraphrase-multilingual-mpnet-base-v2,q_19,remove emoji characters from text,en,func_174,"func_074, func_174, func_064",True,2
+paraphrase-multilingual-mpnet-base-v2,q_20,привести телефон к единому формату,ru,func_070,"func_170, func_062, func_070",True,3
+paraphrase-multilingual-mpnet-base-v2,q_21,разбить большой список на части одинаковой длины,ru,func_082,"func_182, func_126, func_082",True,3
+paraphrase-multilingual-mpnet-base-v2,q_22,memoization decorator for function results,en,func_085,"func_085, func_185, func_084",True,1
+paraphrase-multilingual-mpnet-base-v2,q_23,форматировать число секунд в человекочитаемый вид,ru,func_188,"func_088, func_188, func_200",True,2
+paraphrase-multilingual-mpnet-base-v2,q_24,compute file hash for verification,en,func_192,"func_103, func_003, func_092",False,0
+paraphrase-multilingual-mpnet-base-v2,q_25,"формат суммы как 1 234,56 рублей",ru,func_099,"func_099, func_199, func_073",True,1

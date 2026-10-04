@@ -1,0 +1,5 @@
+﻿model,language,Precision@3,MRR,N
+paraphrase-multilingual-MiniLM-L12-v2,ru,0.867,0.567,15
+paraphrase-multilingual-MiniLM-L12-v2,en,0.9,0.683,10
+paraphrase-multilingual-mpnet-base-v2,ru,0.933,0.622,15
+paraphrase-multilingual-mpnet-base-v2,en,0.9,0.7,10
